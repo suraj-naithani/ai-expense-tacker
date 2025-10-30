@@ -1,0 +1,77 @@
+name: Expense Tracker CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: 🟢 Backend Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository
+      - uses: actions/checkout@v4
+
+      # Step 2: Setup Node.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Step 3: Cache backend dependencies
+      - name: Cache backend dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-backend-${{ hashFiles('backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-backend-
+
+      # Step 4: Install dependencies
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      # Step 5: Run tests
+      - name: Run backend tests
+        working-directory: ./backend
+        run: npm test
+
+  frontend:
+    name: 🎨 Frontend Build & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository
+      - uses: actions/checkout@v4
+
+      # Step 2: Setup Node.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Step 3: Cache frontend dependencies
+      - name: Cache frontend dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-frontend-
+
+      # Step 4: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci --legacy-peer-deps
+
+      # Step 5: Lint code
+      - name: Lint frontend
+        working-directory: ./frontend
+        run: npm run lint
+
+      # Step 6: Build app
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
