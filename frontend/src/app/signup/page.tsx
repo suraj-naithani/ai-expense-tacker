@@ -25,6 +25,17 @@ export default function SignUp() {
                 <CardContent className="space-y-4 pt-4">
                     <form className="space-y-3">
                         <div className="space-y-1.5">
+                            <Label htmlFor="username" className="text-sm">Username</Label>
+                            <Input
+                                id="username"
+                                type="text"
+                                placeholder="your_username"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-1.5">
                             <Label htmlFor="email" className="text-sm">Email</Label>
                             <Input
                                 id="email"
