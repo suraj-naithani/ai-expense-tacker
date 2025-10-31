@@ -1,11 +1,13 @@
 import jwt from "jsonwebtoken";
 import { Response } from "express";
 
+const isProd = (process.env.NODE_ENV || "development") === "production";
+
 const cookieOptions: { maxAge: number; sameSite: "none" | "lax" | "strict" | boolean; httpOnly: boolean; secure: boolean } = {
     maxAge: 15 * 24 * 60 * 60 * 1000,
-    sameSite: "none" as const,
+    sameSite: isProd ? "none" : "lax",
     httpOnly: true,
-    secure: true,
+    secure: isProd,
 };
 
 const sendToken = (res: Response, user: any, code: number, message: string) => {
