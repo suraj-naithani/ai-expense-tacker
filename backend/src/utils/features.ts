@@ -1,16 +1,18 @@
 import jwt from "jsonwebtoken";
 import { Response } from "express";
 
-// Cookie options that adapt to environment
 const cookieOptions: { maxAge: number; sameSite: "none" | "lax" | "strict" | boolean; httpOnly: boolean; secure: boolean } = {
     maxAge: 15 * 24 * 60 * 60 * 1000,
-    sameSite: env.isProduction() ? ("none" as const) : ("lax" as const),
+    sameSite: "none" as const,
     httpOnly: true,
-    secure: env.isProduction(), // HTTPS only in production
+    secure: true,
 };
 
 const sendToken = (res: Response, user: any, code: number, message: string) => {
-    const token = jwt.sign({ _id: user.id }, env.JWT_SECRET, { expiresIn: "15d" });
+    if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is not set in environment variables");
+    }
+    const token = jwt.sign({ _id: user.id }, process.env.JWT_SECRET, { expiresIn: "15d" });
 
     return res
         .status(code)
@@ -18,7 +20,7 @@ const sendToken = (res: Response, user: any, code: number, message: string) => {
         .json({
             success: true,
             message,
-            user,
+            user
         });
 };
 
