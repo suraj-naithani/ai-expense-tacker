@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Briefcase,
@@ -10,17 +10,38 @@ import {
   ShoppingCart,
   Target,
   TrendingDown,
-  TrendingUp
-} from "lucide-react"
+  TrendingUp,
+} from "lucide-react";
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { useState } from "react"
-import { Area, AreaChart, Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog"
-import { QuickAddExpenseDialog } from "@/components/dialog/QuickAddExpenseDialog"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { useState } from "react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
+import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
+import { QuickAddExpenseDialog } from "@/components/dialog/QuickAddExpenseDialog";
 
 const spendingData = [
   { month: "Jan", amount: 2400 },
@@ -34,7 +55,7 @@ const spendingData = [
   { month: "Sep", amount: 7593 },
   { month: "Nov", amount: 4860 },
   { month: "Dec", amount: 9800 },
-]
+];
 
 const weeklyData = [
   { week: "Mon", amount: 1200 },
@@ -44,15 +65,20 @@ const weeklyData = [
   { week: "Fri", amount: 2200 },
   { week: "Sat", amount: 2200 },
   { week: "Sun", amount: 2200 },
-]
+];
 
 const categoryData = [
   { category: "Food", amount: 450, percentage: 32.1, color: "#3b82f6" },
   { category: "Transport", amount: 280, percentage: 20.0, color: "#8b5cf6" },
-  { category: "Entertainment", amount: 150, percentage: 10.7, color: "#10b981" },
+  {
+    category: "Entertainment",
+    amount: 150,
+    percentage: 10.7,
+    color: "#10b981",
+  },
   { category: "Shopping", amount: 320, percentage: 22.9, color: "#f59e0b" },
   { category: "Bills", amount: 200, percentage: 14.3, color: "#ef4444" },
-]
+];
 
 const recentTransactions = [
   {
@@ -105,11 +131,11 @@ const recentTransactions = [
     icon: ShoppingCart,
     color: "#8b5cf6",
   },
-]
+];
 
 const Page = () => {
-  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false)
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
+  const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
   return (
     <main className="flex-1 overflow-auto">
@@ -117,7 +143,9 @@ const Page = () => {
         <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Track spending, monitor income, and stay financially organized</p>
+            <p className="text-muted-foreground">
+              Track spending, monitor income, and stay financially organized
+            </p>
           </div>
           <Button
             size="sm"
@@ -132,11 +160,15 @@ const Page = () => {
         <div className="grid gap-4 md:gap-6 grid-cols-2 lg:grid-cols-4">
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Balance</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Total Balance
+              </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#4ade80]">₹12,450.00</div>
+              <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
+                ₹12,450.00
+              </div>
               <p className="text-xs text-muted-foreground">
                 <span className="text-[#4ade80]">+2.5%</span> from last month
               </p>
@@ -145,7 +177,9 @@ const Page = () => {
 
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Income</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Monthly Income
+              </CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -158,11 +192,15 @@ const Page = () => {
 
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Expense</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Monthly Expense
+              </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#f87171]">₹3,840.00</div>
+              <div className="text-xl md:text-2xl font-bold text-[#f87171]">
+                ₹3,840.00
+              </div>
               <p className="text-xs text-muted-foreground">
                 <span className="text-[#f87171]">+8%</span> from last month
               </p>
@@ -171,11 +209,15 @@ const Page = () => {
 
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Savings Rate</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Savings Rate
+              </CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#60a5fa]">26%</div>
+              <div className="text-xl md:text-2xl font-bold text-[#60a5fa]">
+                26%
+              </div>
               <p className="text-xs text-muted-foreground">
                 <span className="text-[#4ade80]">+3%</span> from last month
               </p>
@@ -186,7 +228,9 @@ const Page = () => {
         <Card className="border-[var(--border)] bg-[var(--card)]">
           <CardHeader>
             <CardTitle>Quick Add Expense</CardTitle>
-            <CardDescription>Add frequently used expenses quickly</CardDescription>
+            <CardDescription>
+              Add frequently used expenses quickly
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
@@ -233,7 +277,9 @@ const Page = () => {
           <Card className="col-span-full lg:col-span-4 border-[var(--border)] bg-[var(--card)]">
             <CardHeader>
               <CardTitle>Spending Trend</CardTitle>
-              <CardDescription>Your monthly spending over the last 6 months</CardDescription>
+              <CardDescription>
+                Your monthly spending over the last 6 months
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -249,7 +295,11 @@ const Page = () => {
                   <defs>
                     <linearGradient id="fillAmount" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1} />
+                      <stop
+                        offset="95%"
+                        stopColor="#6366f1"
+                        stopOpacity={0.1}
+                      />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="month" axisLine={false} tickLine={false} />
@@ -316,7 +366,9 @@ const Page = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Recent Transactions</CardTitle>
-                <CardDescription>Your latest financial activity</CardDescription>
+                <CardDescription>
+                  Your latest financial activity
+                </CardDescription>
               </div>
             </CardHeader>
             <CardContent>
@@ -327,21 +379,35 @@ const Page = () => {
                       className="w-10 h-10 rounded-full flex items-center justify-center"
                       style={{ backgroundColor: `${transaction.color}20` }}
                     >
-                      <transaction.icon className="h-5 w-5" style={{ color: transaction.color }} />
+                      <transaction.icon
+                        className="h-5 w-5"
+                        style={{ color: transaction.color }}
+                      />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium truncate">{transaction.description}</p>
+                        <p className="text-sm font-medium truncate">
+                          {transaction.description}
+                        </p>
                         <p
-                          className={`text-sm font-medium ${transaction.type === "income" ? "text-[#4ade80]" : "text-[#f87171]"
-                            }`}
+                          className={`text-sm font-medium ${
+                            transaction.type === "income"
+                              ? "text-[#4ade80]"
+                              : "text-[#f87171]"
+                          }`}
                         >
-                          {transaction.type === "income" ? "+" : ""}₹{Math.abs(transaction.amount).toFixed(2)}
+                          {transaction.type === "income" ? "+" : ""}₹
+                          {Math.abs(transaction.amount).toFixed(2)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground">{transaction.date}</span>
-                        <Badge variant="secondary" className="text-xs px-2 py-0 bg-[var(--card-hover)]">
+                        <span className="text-xs text-muted-foreground">
+                          {transaction.date}
+                        </span>
+                        <Badge
+                          variant="secondary"
+                          className="text-xs px-2 py-0 bg-[var(--card-hover)]"
+                        >
                           {transaction.category}
                         </Badge>
                       </div>
@@ -391,14 +457,24 @@ const Page = () => {
                 </div>
                 <div className="space-y-3 flex-1 w-full">
                   {categoryData.map((item) => (
-                    <div key={item.category} className="flex items-center justify-between">
+                    <div
+                      key={item.category}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
                         <span className="text-sm">{item.category}</span>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">₹{item.amount}</div>
-                        <div className="text-xs text-muted-foreground">{item.percentage}%</div>
+                        <div className="text-sm font-medium">
+                          ₹{item.amount}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.percentage}%
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -409,10 +485,16 @@ const Page = () => {
         </div>
       </div>
 
-      <AddExpenseDialog open={isAddExpenseOpen} onOpenChange={setIsAddExpenseOpen} />
-      <QuickAddExpenseDialog open={isQuickAddOpen} onOpenChange={setIsQuickAddOpen} />
+      <AddExpenseDialog
+        open={isAddExpenseOpen}
+        onOpenChange={setIsAddExpenseOpen}
+      />
+      <QuickAddExpenseDialog
+        open={isQuickAddOpen}
+        onOpenChange={setIsQuickAddOpen}
+      />
     </main>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;
