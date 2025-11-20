@@ -48,14 +48,16 @@ export default function SignIn() {
 
           onError: (ctx) => {
             const message = ctx.error.message || "Internal server error";
-            toast.error("Sign in+ failed", {
+            toast.error("Sign in failed", {
               description: message,
             });
           },
         }
       );
-    } catch (error: any) {
-      toast.error("Something went wrong. Please try again.");
+    } catch (error: unknown) {
+      toast.error("Network error", {
+        description: "Please check your connection and try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,9 @@ export default function SignIn() {
         callbackURL: `${process.env.NEXT_PUBLIC_CLIENT_URL || ""}/dashboard`,
       });
     } catch (error) {
-      console.error("Error signing in with Google", error);
+      toast.error("Network error", {
+        description: "Error signing in with Google",
+      });
     } finally {
       setLoading(false);
     }
@@ -157,7 +161,9 @@ export default function SignIn() {
               Don’t have an account?
             </span>{" "}
             <Link href="/signup" className="text-primary hover:underline">
-              Sign up
+              {
+                loading ? "Signing up..." : "Sign up"
+              }
             </Link>
           </div>
         </CardContent>

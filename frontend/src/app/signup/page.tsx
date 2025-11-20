@@ -51,9 +51,7 @@ export default function SignUp() {
           },
 
           onError: (ctx) => {
-            const message =
-              ctx.error.message ||
-              "Failed to create account. Please check your details and try again.";
+            const message = ctx.error.message || "Internal server error";
 
             toast.error("Sign up failed", {
               description: message,
@@ -61,7 +59,7 @@ export default function SignUp() {
           },
         }
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Network error", {
         description: "Please check your connection and try again.",
       });
@@ -78,7 +76,9 @@ export default function SignUp() {
         callbackURL: `${process.env.NEXT_PUBLIC_CLIENT_URL || ""}/dashboard`,
       });
     } catch (error) {
-      console.error("Error signing in with Google", error);
+      toast.error("Network error", {
+        description: "Error signing up with Google",
+      });
     } finally {
       setLoading(false);
     }
@@ -180,7 +180,9 @@ export default function SignUp() {
               Already have an account?
             </span>{" "}
             <Link href="/signin" className="text-primary hover:underline">
-              Sign In
+              {
+                loading ? "Signing up..." : "Sign in"
+              }
             </Link>
           </div>
         </CardContent>

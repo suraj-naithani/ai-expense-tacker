@@ -1,4 +1,3 @@
-// middleware.ts  ← ONLY FILE YOU EVER TOUCH
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
