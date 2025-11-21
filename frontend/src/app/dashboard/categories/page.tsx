@@ -216,7 +216,7 @@ export default function Page() {
                 {filteredCategories.map((category) => (
                   <div
                     key={category.id}
-                    className="group relative border border-[var(--border)] bg-[var(--card)] rounded-lg p-3 hover:bg-[var(-card-hover)] transition-all duration-200 cursor-pointer overflow-hidden"
+                    className="group relative border border-[var(--border)] bg-[var(--card)] rounded-lg p-3 hover:bg-[var(--card-hover)] transition-all duration-200 cursor-pointer overflow-hidden"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div

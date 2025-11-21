@@ -46,11 +46,37 @@ export default function SignIn() {
             });
           },
 
-          onError: (ctx) => {
-            const message = ctx.error.message || "Internal server error";
-            toast.error("Sign in failed", {
-              description: message,
-            });
+          // onError: (ctx) => {
+          //   const message = ctx.error.message || "Internal server error";
+          //   toast.error("Sign in failed", {
+          //     description: message,
+          //   });
+          // },
+          onError: async (ctx) => {
+            const err = ctx.error;
+
+            // Handle "email not verified" specifically
+            if (err.status === 403 && err.message.toLowerCase().includes("verify")) {
+              toast.error("Email not verified", {
+                description: "Please check your inbox and click the verification link.",
+                action: {
+                  label: "Resend Email",
+                  onClick: async () => {
+                    await authClient.sendVerificationEmail({
+                      email: form.email,
+                      callbackURL: "/signin",
+                    });
+                    toast.success("Verification email sent!", {
+                      description: "Check your inbox (and spam folder).",
+                    });
+                  },
+                },
+              });
+            } else {
+              toast.error("Sign in failed", {
+                description: err.message || "Invalid email or password",
+              });
+            }
           },
         }
       );
@@ -121,7 +147,9 @@ export default function SignIn() {
               />
             </div>
             <Button type="submit" className="w-full cursor-pointer">
-              Sign in
+              {
+                loading ? "Signing up..." : "Sign in"
+              }
             </Button>
           </form>
 
@@ -163,9 +191,7 @@ export default function SignIn() {
               Don’t have an account?
             </span>{" "}
             <Link href="/signup" className="text-primary hover:underline">
-              {
-                loading ? "Signing up..." : "Sign up"
-              }
+              Sign up
             </Link>
           </div>
         </CardContent>
