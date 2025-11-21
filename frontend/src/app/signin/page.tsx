@@ -54,7 +54,8 @@ export default function SignIn() {
           },
         }
       );
-    } catch (error: unknown) {
+    } catch (error) {
+      console.error(error)
       toast.error("Network error", {
         description: "Please check your connection and try again.",
       });
@@ -71,6 +72,7 @@ export default function SignIn() {
         callbackURL: `${process.env.NEXT_PUBLIC_CLIENT_URL || ""}/dashboard`,
       });
     } catch (error) {
+      console.error(error)
       toast.error("Network error", {
         description: "Error signing in with Google",
       });
