@@ -1,22 +1,25 @@
-import "./config/env";
+import "./config/env.js";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
-import authRoute from "./routes/authRoute";
-import { connectDB } from "./utils/connection";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
-import { corsOptions } from "./constants/config";
+import { toNodeHandler } from "better-auth/node";
+import { corsOptions } from "./constants/config.js";
+import { auth } from "./utils/auth.js";
 import rateLimit from "express-rate-limit";
+import { connectDB } from "./utils/connection.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+app.use(cors(corsOptions));
+
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
 app.use(express.json());
 app.use(helmet());
 app.use(cookieParser());
-app.use(cors(corsOptions));
 app.use(morgan("dev"));
 
 const limiter = rateLimit({
@@ -29,8 +32,6 @@ app.use(limiter);
 app.get("/", (req, res) => {
     res.send("🚀 Server is running successfully!");
 });
-
-app.use("/api/v1/auth", authRoute);
 
 connectDB().then(() => {
     app.listen(PORT, () => {
