@@ -36,7 +36,7 @@ export default function SignUp() {
           name: form.name,
           email: form.email,
           password: form.password,
-          callbackURL: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard`,
+          callbackURL: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/signin`,
         },
         {
           onRequest: () => {
@@ -45,7 +45,7 @@ export default function SignUp() {
 
           onSuccess: () => {
             toast.success("Welcome to the app!", {
-              description: "Account created successfully. Taking you to dashboard...",
+              description: "Account created successfully. Please verify you mail.",
               duration: 5000,
             });
           },
@@ -140,7 +140,9 @@ export default function SignUp() {
               />
             </div>
             <Button type="submit" className="w-full">
-              Sign Up
+              {
+                loading ? "Signing up..." : "Sign up"
+              }
             </Button>
           </form>
 
@@ -182,9 +184,7 @@ export default function SignUp() {
               Already have an account?
             </span>{" "}
             <Link href="/signin" className="text-primary hover:underline">
-              {
-                loading ? "Signing up..." : "Sign in"
-              }
+              Sign in
             </Link>
           </div>
         </CardContent>

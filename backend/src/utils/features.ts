@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { Response } from "express";
+import nodemailer from "nodemailer";
 
 const isProd = (process.env.NODE_ENV || "development") === "production";
 
@@ -26,4 +27,39 @@ const sendToken = (res: Response, user: any, code: number, message: string) => {
         });
 };
 
-export { sendToken, cookieOptions };
+const sendEmail = async ({ to, subject, text, html }: {
+    to: string;
+    subject: string;
+    text?: string;
+    html?: string;
+}) => {
+    try {
+        const transporter = nodemailer.createTransport({
+            host: "smtp.gmail.com",
+            port: 465,
+            service: "gmail",
+            secure: true,
+            auth: {
+                user: process.env.GMAIL_ID,
+                pass: process.env.GMAIL_PASSWORD,
+            },
+        });
+
+        await transporter.sendMail({
+            from: process.env.GMAIL_ID,
+            to,
+            subject,
+            text: text || "",
+            html: html || text?.replace(/\n/g, "<br>"),
+        });
+
+        console.log(`Email sent to ${to} with subject: ${subject}`);
+        console.log("Email content:", text);
+        console.log("Email content:", html);
+    } catch (error) {
+        console.error("Full error:", error);
+        return error;
+    }
+};
+
+export { sendToken, cookieOptions, sendEmail };
