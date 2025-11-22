@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-export default function ResetPassword() {
+function ResetPasswordContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const [password, setPassword] = useState("");
@@ -27,7 +27,7 @@ export default function ResetPassword() {
                 <Card className="w-full max-w-sm">
                     <CardHeader>
                         <CardTitle>Invalid Reset Link</CardTitle>
-                        <CardDescription>The link has expired or is invalid. Please request a new one.</CardDescription>
+                        <CardDescription>The link has expired or is invalid.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button className="w-full" asChild>
@@ -44,7 +44,7 @@ export default function ResetPassword() {
             <div className="min-h-screen bg-[--card] flex items-center justify-center px-4">
                 <Card className="w-full max-w-sm">
                     <CardHeader>
-                        <CardTitle>Password Reset Successful!</CardTitle>
+                        <CardTitle>Password Updated!</CardTitle>
                     </CardHeader>
                     <CardContent className="text-center space-y-4">
                         <p>You can now sign in with your new password.</p>
@@ -63,7 +63,7 @@ export default function ResetPassword() {
                 <Card className="w-full max-w-sm">
                     <CardHeader>
                         <CardTitle>Missing Token</CardTitle>
-                        <CardDescription>Please use a valid reset link from your email.</CardDescription>
+                        <CardDescription>Please use the link from your email.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Button className="w-full" asChild>
@@ -82,7 +82,7 @@ export default function ResetPassword() {
             return;
         }
         if (password.length < 6) {
-            toast.error("Password must be at least 6 characters");
+            toast.error("Password too short");
             return;
         }
 
@@ -90,23 +90,16 @@ export default function ResetPassword() {
         try {
             const { error } = await authClient.resetPassword({
                 newPassword: password,
-                token, 
+                token,
             });
 
-            if (error) {
-                toast.error("Reset failed", { description: error.message });
-                return;
-            }
+            if (error) throw error;
 
             setDone(true);
-            toast.success("Password updated!", {
-                description: "You can now sign in.",
-            });
-            router.push("/signin"); 
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Invalid token or expired link";
-            toast.error("Error", {description: message});
-
+            toast.success("Password updated successfully!");
+            router.push("/signin")
+        } catch (err: any) {
+            toast.error("Failed", { description: err.message || "Invalid or expired link" });
         } finally {
             setLoading(false);
         }
@@ -146,6 +139,7 @@ export default function ResetPassword() {
                             {loading ? "Updating..." : "Update Password"}
                         </Button>
                     </form>
+
                     <div className="mt-6 text-center text-sm">
                         <Link href="/signin" className="text-primary hover:underline">
                             ← Back to sign in
@@ -154,5 +148,13 @@ export default function ResetPassword() {
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+export default function ResetPasswordPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <ResetPasswordContent />
+        </Suspense>
     );
 }
