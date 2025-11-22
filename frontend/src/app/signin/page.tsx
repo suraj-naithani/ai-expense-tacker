@@ -46,16 +46,9 @@ export default function SignIn() {
             });
           },
 
-          // onError: (ctx) => {
-          //   const message = ctx.error.message || "Internal server error";
-          //   toast.error("Sign in failed", {
-          //     description: message,
-          //   });
-          // },
           onError: async (ctx) => {
             const err = ctx.error;
 
-            // Handle "email not verified" specifically
             if (err.status === 403 && err.message.toLowerCase().includes("verify")) {
               toast.error("Email not verified", {
                 description: "Please check your inbox and click the verification link.",
@@ -145,6 +138,11 @@ export default function SignIn() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 required
               />
+            </div>
+            <div className="text-right m-2">
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Forgot password?
+              </Link>
             </div>
             <Button type="submit" className="w-full cursor-pointer">
               {

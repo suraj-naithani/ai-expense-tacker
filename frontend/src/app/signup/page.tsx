@@ -14,11 +14,14 @@ import { Separator } from "@/components/ui/separator";
 import { authClient } from "@/lib/auth-client";
 import { EmailPasswordSignup } from "@/types/auth";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function SignUp() {
+  const router = useRouter();
+
   const [form, setForm] = useState<EmailPasswordSignup>({
     name: "",
     email: "",
@@ -48,6 +51,7 @@ export default function SignUp() {
               description: "Account created successfully. Please verify you mail.",
               duration: 5000,
             });
+            router.push("/signin"); 
           },
 
           onError: (ctx) => {
