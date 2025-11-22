@@ -98,8 +98,9 @@ function ResetPasswordContent() {
             setDone(true);
             toast.success("Password updated successfully!");
             router.push("/signin")
-        } catch (err: unknown) {
-            toast.error("Failed", { description: err.message || "Invalid or expired link" });
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Invalid or expired link";
+            toast.error("Failed", { description: message || "Invalid or expired link" });
         } finally {
             setLoading(false);
         }
