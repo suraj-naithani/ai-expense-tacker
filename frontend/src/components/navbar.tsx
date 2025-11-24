@@ -5,6 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useUser } from "@/hooks/useUser";
 import { Bell, Moon, PanelLeft, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import Image from "next/image";
@@ -18,6 +19,7 @@ interface NavbarProps {
 
 export default function Navbar({ setIsSidebarOpen }: NavbarProps) {
   const { theme, setTheme } = useTheme();
+  const { user, loading } = useUser();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [notifications, setNotifications] = useState(5);
 
@@ -58,19 +60,23 @@ export default function Navbar({ setIsSidebarOpen }: NavbarProps) {
         <DropdownMenu>
           <DropdownMenuTrigger className="focus:outline-none">
             <Image
-              src="/avatar.png"
-              alt="User avatar"
+              src={user?.image ? user.image : "/avatar.png"}
+              alt={user?.name ?? "User avatar"}
               width={25}
               height={25}
-              className="rounded-full ring-2 ring-gray-200 dark:ring-[#2B2B30] sm:w-8 sm:h-8 cursor-pointer"
+              className="rounded-full ring-2 ring-gray-200 dark:ring-[#2B2B30] sm:w-8 sm:h-8 cursor-pointer object-cover"
             />
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
             sideOffset={8}
-            className="w-[280px] sm:w-80 !bg-[--card] border-border rounded-lg shadow-lg"
+            className="w-[240px] !bg-[--card] border-border rounded-lg shadow-lg p-0"
           >
-            <Profile avatar="/avatar.png" />
+            <Profile
+              name={user?.name ?? (loading ? "Loading user..." : undefined)}
+              role={user?.email ?? undefined}
+              avatar={user?.image ? user.image : "/avatar.png"}
+            />
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
