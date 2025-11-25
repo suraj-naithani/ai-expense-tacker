@@ -100,7 +100,7 @@ function ResetPasswordContent() {
             router.push("/signin")
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Invalid or expired link";
-            toast.error("Failed", { description: message || "Invalid or expired link" });
+            toast.error("Failed", { description: message });
         } finally {
             setLoading(false);
         }

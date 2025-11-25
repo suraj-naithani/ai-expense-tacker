@@ -79,5 +79,15 @@ export type GoogleOAuthProfile = {
     image?: string | null;
 };
 
+export type SessionUser = {
+    id: string;
+    name: string | null;
+    email: string | null;
+    emailVerified: boolean;
+    image?: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+};
+
 // 4. RE-EXPORT EVERYTHING (so you can do: import { User, EmailPasswordSignup } from "@/types")
 export * from "./index";
