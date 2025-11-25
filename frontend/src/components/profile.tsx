@@ -1,6 +1,9 @@
+import { authClient } from "@/lib/auth-client";
 import { FileText, LogOut, MoveUpRight, Settings, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface MenuItem {
     label: string;
@@ -27,6 +30,8 @@ export default function Profile({
     role = defaultProfile.role,
     avatar = defaultProfile.avatar,
 }: ProfileProps = defaultProfile) {
+    const router = useRouter();
+
     const menuItems: MenuItem[] = [
         {
             label: "Profile",
@@ -46,6 +51,41 @@ export default function Profile({
             external: true,
         },
     ];
+
+    const handleSignOut = async () => {
+        try {
+            await authClient.signOut({
+                fetchOptions: {
+                    onRequest: () => {
+                        toast.loading("Signing out...", { id: "signout-toast" });
+                    },
+
+                    onSuccess: () => {
+                        toast.success("Signed out successfully", {
+                            description: "See you soon!",
+                            id: "signout-toast",
+                        });
+
+                        router.push("/signin");
+                        router.refresh();
+                    },
+
+                    onError: (ctx) => {
+                        toast.error("Sign out failed", {
+                            description: ctx.error.message || "Something went wrong",
+                            id: "signout-toast",
+                        });
+                    },
+                },
+            });
+        } catch (error: unknown) {
+            console.error(error)
+            toast.error("Network error", {
+                description: "Please check your connection",
+                id: "signout-toast",
+            });
+        }
+    };
 
     return (
         <div className="w-full max-w-[220px] mx-auto">
@@ -97,6 +137,7 @@ export default function Profile({
 
                         <button
                             type="button"
+                            onClick={handleSignOut}
                             className="w-full flex items-center justify-between rounded-lg px-2 py-1.5 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors duration-200"
                         >
                             <div className="flex items-center gap-2">
