@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Banknote,
   Calendar,
   CreditCard,
   HelpCircle,
@@ -107,6 +108,9 @@ export default function Sidebar({
                 <div className="space-y-1">
                   <NavItem href="/dashboard/transactions" icon={Wallet}>
                     Transactions
+                  </NavItem>
+                  <NavItem href="/dashboard/accounts" icon={Banknote}>
+                    Accounts
                   </NavItem>
                   <NavItem href="/dashboard/reports" icon={Receipt}>
                     Reports
