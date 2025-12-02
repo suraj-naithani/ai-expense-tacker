@@ -24,14 +24,7 @@ export const createAccountSchema = z.object({
 export const updateAccountSchema = createAccountSchema.partial();
 
 export const deleteAccountParamSchema = z.object({
-    id: z.string().cuid("Invalid account ID"),
-});
-
-export const deleteAccountsSchema = z.object({
-    ids: z
-        .array(z.string().cuid("Invalid account ID in array"))
-        .min(1, "At least one ID is required")
-        .max(50, "Cannot delete more than 50 accounts at once"),
+    id: z.string()
 });
 
 export const makeDefaultSchema = z.object({});
