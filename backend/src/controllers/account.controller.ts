@@ -127,4 +127,95 @@ const updateAccount = async (req: Request, res: Response) => {
     }
 };
 
-export { createAccount, getAccounts, updateAccount };
+const deleteAccount = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+    const accountId = req.params.id;
+
+    try {
+        const account = await prisma.financialAccount.findUnique({
+            where: { id: accountId },
+            select: { id: true, userId: true, isDefault: true },
+        });
+
+        if (!account || account.userId !== userId) {
+            return res.status(404).json({
+                success: false,
+                message: "Account not found",
+            });
+        }
+
+        await prisma.financialAccount.delete({
+            where: { id: accountId },
+        });
+
+        if (account.isDefault) {
+            await prisma.financialAccount.updateMany({
+                where: { userId },
+                data: { isDefault: true },
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Account deleted successfully",
+        });
+    } catch (error) {
+        console.error("Delete account error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete account",
+        });
+    }
+};
+
+const deleteAccounts = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+    const { ids } = req.body;
+
+    try {
+        const accounts = await prisma.financialAccount.findMany({
+            where: {
+                id: { in: ids },
+                userId,
+            },
+            select: { id: true, isDefault: true },
+        });
+
+        const foundIds = accounts.map((a) => a.id);
+        const missingIds = ids.filter((id: string) => !foundIds.includes(id));
+
+        if (missingIds.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Some accounts not found or don't belong to you",
+                missingIds,
+            });
+        }
+
+        await prisma.financialAccount.deleteMany({
+            where: { id: { in: foundIds } },
+        });
+
+        const hadDefault = accounts.some((a) => a.isDefault);
+        if (hadDefault) {
+            await prisma.financialAccount.updateMany({
+                where: { userId },
+                data: { isDefault: true },
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `${foundIds.length} account(s) deleted successfully`,
+            deletedCount: foundIds.length,
+        });
+    } catch (error) {
+        console.error("Bulk delete error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete accounts",
+        });
+    }
+};
+
+export { createAccount, getAccounts, updateAccount, deleteAccount, deleteAccounts };
