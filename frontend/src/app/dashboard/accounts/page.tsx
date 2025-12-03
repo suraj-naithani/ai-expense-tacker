@@ -1,7 +1,7 @@
 "use client";
 
 import { Edit2, MoreVertical, Plus, Trash2, Wallet } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
     AddAccountDialog,
@@ -9,13 +9,13 @@ import {
 } from "@/components/dialog/AddAccountDialog";
 import { DeleteAccountDialog } from "@/components/dialog/DeleteAccountDialog";
 import { EditAccountDialog } from "@/components/dialog/EditAccountDialog";
+import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -23,86 +23,108 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import {
+    formatAccountType,
+    mapAccountTypeToApi,
+    mapAccountsFromApi,
+} from "@/lib/utils";
+import {
+    useCreateAccountMutation,
+    useDeleteAccountMutation,
+    useGetAccountsQuery,
+    useUpdateAccountMutation,
+} from "@/redux/api/accountApi";
+import { toast } from "sonner";
 
 type Account = AccountFormValues;
 
-const initialAccounts: Account[] = [
-    {
-        id: "1",
-        name: "Work",
-        type: "current",
-        initialBalance: 5941,
-        isDefault: true,
-    },
-    {
-        id: "2",
-        name: "Savings",
-        type: "savings",
-        initialBalance: 12500,
-        isDefault: false,
-    },
-    {
-        id: "3",
-        name: "Cash Wallet",
-        type: "cash",
-        initialBalance: 240,
-        isDefault: false,
-    },
-];
-
-const formatAccountType = (type: Account["type"]) => {
-    switch (type) {
-        case "current":
-            return "Current account";
-        case "savings":
-            return "Savings account";
-        case "credit-card":
-            return "Credit card";
-        case "cash":
-            return "Cash";
-        default:
-            return type;
-    }
-};
-
 export default function AccountsPage() {
-    const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+    const { data, isLoading, isError } = useGetAccountsQuery();
+    const [createAccount] = useCreateAccountMutation();
+    const [updateAccount] = useUpdateAccountMutation();
+    const [deleteAccount] = useDeleteAccountMutation();
+
+    useEffect(() => {
+        if (data?.data) {
+            setAccounts(mapAccountsFromApi(data.data));
+        }
+    }, [data]);
+
     const defaultAccountId = useMemo(
         () => accounts.find((a) => a.isDefault)?.id,
         [accounts],
     );
 
-    const handleCreateAccount = (account: AccountFormValues) => {
-        setAccounts((prev) => {
-            let updated = [...prev];
+    const handleCreateAccount = async (account: AccountFormValues) => {
+        try {
+            const payload = {
+                name: account.name,
+                type: mapAccountTypeToApi(account.type),
+                balance: account.initialBalance,
+                isDefault: account.isDefault,
+            };
 
-            if (account.isDefault) {
-                updated = updated.map((a) => ({ ...a, isDefault: false }));
-            }
-
-            return [
-                ...updated,
-                {
-                    ...account,
-                    initialBalance: account.initialBalance,
-                },
-            ];
-        });
+            await createAccount(payload).unwrap();
+            toast.success("Account created successfully");
+            setIsDialogOpen(false);
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to create account. Please try again.";
+            toast.error(errorMessage);
+        }
     };
 
-    const handleToggleDefault = (id: string) => {
-        setAccounts((prev) =>
-            prev.map((account) => ({
-                ...account,
-                isDefault: account.id === id,
-            })),
-        );
+    const handleToggleDefault = async (id: string) => {
+        const accountToUpdate = accounts.find((account) => account.id === id);
+        if (!accountToUpdate) return;
+
+        try {
+            const payload = {
+                name: accountToUpdate.name,
+                type: mapAccountTypeToApi(accountToUpdate.type),
+                balance: accountToUpdate.initialBalance,
+                isDefault: true,
+            };
+
+            await updateAccount({ id, body: payload }).unwrap();
+            toast.success("Default account updated successfully");
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to update default account. Please try again.";
+            toast.error(errorMessage);
+        }
+    };
+
+    const handleSaveEdit = async (updated: AccountFormValues) => {
+        if (!updated.id) return;
+
+        try {
+            const payload = {
+                name: updated.name,
+                type: mapAccountTypeToApi(updated.type),
+                balance: updated.initialBalance,
+                isDefault: updated.isDefault,
+            };
+
+            await updateAccount({ id: updated.id, body: payload }).unwrap();
+            toast.success("Account updated successfully");
+            setIsEditDialogOpen(false);
+            setEditingAccount(null);
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to update account. Please try again.";
+            toast.error(errorMessage);
+        }
     };
 
     const handleOpenEdit = (account: Account) => {
@@ -110,55 +132,60 @@ export default function AccountsPage() {
         setIsEditDialogOpen(true);
     };
 
-    const handleSaveEdit = (updated: AccountFormValues) => {
-        setAccounts((prev) => {
-            let next = prev.map((account) =>
-                account.id === updated.id ? { ...account, ...updated } : account,
-            );
-
-            if (updated.isDefault) {
-                next = next.map((account) => ({
-                    ...account,
-                    isDefault: account.id === updated.id,
-                }));
-            }
-
-            return next;
-        });
-        setEditingAccount(null);
-    };
-
     const handleOpenDelete = (account: Account) => {
         setAccountToDelete(account);
         setIsDeleteDialogOpen(true);
     };
 
-    const handleConfirmDelete = () => {
+    const handleConfirmDelete = async () => {
         if (!accountToDelete) return;
 
-        setAccounts((prev) => {
-            const remaining = prev.filter(
-                (account) => account.id !== accountToDelete.id,
-            );
-
-            if (accountToDelete.isDefault && remaining.length > 0) {
-                const [first, ...rest] = remaining;
-                return [{ ...first, isDefault: true }, ...rest];
-            }
-
-            return remaining;
-        });
-
-        setAccountToDelete(null);
+        try {
+            await deleteAccount(accountToDelete.id).unwrap();
+            toast.success("Account deleted successfully");
+            setIsDeleteDialogOpen(false);
+            setAccountToDelete(null);
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to delete account. Please try again.";
+            toast.error(errorMessage);
+        }
     };
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold">Accounts</h1>
+                    <p className="text-muted-foreground">
+                        Loading your accounts...
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold">Accounts</h1>
+                    <p className="text-muted-foreground">
+                        Failed to load accounts. Please try again later.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Reports</h1>
+                    <h1 className="text-2xl font-bold">Accounts</h1>
                     <p className="text-muted-foreground">
-                        Analyze your financial data and trends
+                        Manage the accounts you use for transactions
                     </p>
                 </div>
             </div>
