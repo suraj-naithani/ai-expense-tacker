@@ -1,18 +1,27 @@
 "use client";
 
-import { Plus, Wallet } from "lucide-react";
+import { Edit2, MoreVertical, Plus, Trash2, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
     AddAccountDialog,
     type AccountFormValues,
 } from "@/components/dialog/AddAccountDialog";
+import { DeleteAccountDialog } from "@/components/dialog/DeleteAccountDialog";
+import { EditAccountDialog } from "@/components/dialog/EditAccountDialog";
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
 
 type Account = AccountFormValues;
@@ -59,6 +68,10 @@ const formatAccountType = (type: Account["type"]) => {
 export default function AccountsPage() {
     const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const defaultAccountId = useMemo(
         () => accounts.find((a) => a.isDefault)?.id,
@@ -92,6 +105,53 @@ export default function AccountsPage() {
         );
     };
 
+    const handleOpenEdit = (account: Account) => {
+        setEditingAccount(account);
+        setIsEditDialogOpen(true);
+    };
+
+    const handleSaveEdit = (updated: AccountFormValues) => {
+        setAccounts((prev) => {
+            let next = prev.map((account) =>
+                account.id === updated.id ? { ...account, ...updated } : account,
+            );
+
+            if (updated.isDefault) {
+                next = next.map((account) => ({
+                    ...account,
+                    isDefault: account.id === updated.id,
+                }));
+            }
+
+            return next;
+        });
+        setEditingAccount(null);
+    };
+
+    const handleOpenDelete = (account: Account) => {
+        setAccountToDelete(account);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = () => {
+        if (!accountToDelete) return;
+
+        setAccounts((prev) => {
+            const remaining = prev.filter(
+                (account) => account.id !== accountToDelete.id,
+            );
+
+            if (accountToDelete.isDefault && remaining.length > 0) {
+                const [first, ...rest] = remaining;
+                return [{ ...first, isDefault: true }, ...rest];
+            }
+
+            return remaining;
+        });
+
+        setAccountToDelete(null);
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
@@ -108,7 +168,7 @@ export default function AccountsPage() {
                 <button
                     type="button"
                     onClick={() => setIsDialogOpen(true)}
-                    className="group relative flex aspect-[16/9] w-full items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] text-muted-foreground outline-none transition hover:border-[#6366f1] hover:bg-[var(--card-hover)] focus-visible:ring-2 focus-visible:ring-[#6366f1]"
+                    className="group relative flex min-h-[150px] w-full items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] text-muted-foreground outline-none transition hover:border-[#6366f1] hover:bg-[var(--card-hover)] focus-visible:ring-2 focus-visible:ring-[#6366f1]"
                 >
                     <div className="flex flex-col items-center gap-2">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)] text-[#6366f1] shadow-sm group-hover:border-[#6366f1]">
@@ -121,10 +181,10 @@ export default function AccountsPage() {
                 {accounts.map((account) => (
                     <Card
                         key={account.id}
-                        className="group flex aspect-[16/9] w-full flex-col justify-between overflow-hidden rounded-2xl border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-md"
+                        className="group flex w-full min-h-[150px] flex-col justify-between overflow-hidden rounded-2xl border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-md"
                     >
-                        <CardHeader className="flex flex-row items-start justify-between pb-1">
-                            <div className="space-y-2">
+                        <CardHeader className="flex flex-row items-start justify-between pb-0.5">
+                            <div className="space-y-1">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">
                                     {account.name}
                                 </CardTitle>
@@ -138,18 +198,51 @@ export default function AccountsPage() {
                                     {formatAccountType(account.type)}
                                 </span>
                             </div>
-                            <div className="flex flex-col items-end gap-1">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-[var(--card-hover)] cursor-pointer"
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="bg-[var(--card)] border-[var(--border)]"
+                                >
+                                    <DropdownMenuItem
+                                        onClick={() => handleOpenEdit(account)}
+                                        className="text-xs cursor-pointer"
+                                    >
+                                        <Edit2 className="mr-2 h-3 w-3" />
+                                        Edit account
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => handleOpenDelete(account)}
+                                        className="text-xs text-destructive focus:text-destructive cursor-pointer"
+                                        variant="destructive"
+                                    >
+                                        <Trash2 className="mr-2 h-3 w-3" />
+                                        Delete account
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-between pt-0 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-[11px]">
                                 <Switch
                                     checked={account.isDefault}
-                                    onCheckedChange={() => handleToggleDefault(account.id)}
+                                    onCheckedChange={() =>
+                                        handleToggleDefault(account.id)
+                                    }
                                 />
                                 <span className="text-[11px] text-muted-foreground">
                                     {account.isDefault ? "Default" : "Make default"}
                                 </span>
                             </div>
-                        </CardHeader>
-                        <CardContent className="flex items-end justify-between pt-0 text-xs text-muted-foreground">
-                            <div className="flex-1" />
                             <div className="flex items-center gap-1 text-[11px]">
                                 <Wallet className="h-3 w-3 text-muted-foreground" />
                                 <span>
@@ -167,6 +260,20 @@ export default function AccountsPage() {
                 open={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
                 onSave={handleCreateAccount}
+            />
+
+            <EditAccountDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                account={editingAccount}
+                onSave={handleSaveEdit}
+            />
+
+            <DeleteAccountDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                accountName={accountToDelete?.name}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );
