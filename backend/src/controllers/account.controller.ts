@@ -103,6 +103,20 @@ const updateAccount = async (req: Request, res: Response) => {
             });
         }
 
+        if (isDefault === false && account.isDefault === true) {
+            const fallback = await prisma.financialAccount.findFirst({
+                where: { userId, id: { not: accountId } },
+                orderBy: { createdAt: "asc" },
+            });
+
+            if (fallback) {
+                await prisma.financialAccount.update({
+                    where: { id: fallback.id },
+                    data: { isDefault: true },
+                });
+            }
+        }
+
         const updatedAccount = await prisma.financialAccount.update({
             where: { id: accountId },
             data: {
