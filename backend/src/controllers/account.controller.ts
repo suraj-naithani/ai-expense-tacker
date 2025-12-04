@@ -163,10 +163,17 @@ const deleteAccount = async (req: Request, res: Response) => {
         });
 
         if (account.isDefault) {
-            await prisma.financialAccount.updateMany({
+            const firstRemainingAccount = await prisma.financialAccount.findFirst({
                 where: { userId },
-                data: { isDefault: true },
+                orderBy: { createdAt: "asc" },
             });
+
+            if (firstRemainingAccount) {
+                await prisma.financialAccount.update({
+                    where: { id: firstRemainingAccount.id },
+                    data: { isDefault: true },
+                });
+            }
         }
 
         return res.status(200).json({
