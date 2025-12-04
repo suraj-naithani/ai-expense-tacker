@@ -65,6 +65,8 @@ export default function AccountsPage() {
     );
 
     const handleCreateAccount = async (account: AccountFormValues) => {
+        const loadingToast = toast.loading("Creating account...");
+
         try {
             const payload = {
                 name: account.name,
@@ -74,13 +76,17 @@ export default function AccountsPage() {
             };
 
             await createAccount(payload).unwrap();
-            toast.success("Account created successfully");
+            toast.success("Account created successfully", {
+                description: "You can now use this account for your transactions.",
+            });
             setIsDialogOpen(false);
         } catch (error: unknown) {
             const errorMessage =
                 (error as { data?: { message?: string } })?.data?.message ||
                 "Failed to create account. Please try again.";
             toast.error(errorMessage);
+        } finally {
+            toast.dismiss(loadingToast);
         }
     };
 
@@ -106,7 +112,9 @@ export default function AccountsPage() {
             };
 
             await updateAccount({ id, body: payload }).unwrap();
-            toast.success("Default account updated successfully");
+            toast.success("Default account updated successfully", {
+                description: "This account will now be used for your transactions.",
+            });
         } catch (error: unknown) {
             const errorMessage =
                 (error as { data?: { message?: string } })?.data?.message ||
@@ -131,7 +139,9 @@ export default function AccountsPage() {
             };
 
             await updateAccount({ id: updated.id, body: payload }).unwrap();
-            toast.success("Account updated successfully");
+            toast.success("Account updated successfully", {
+                description: "Your changes have been saved.",
+            });
             setIsEditDialogOpen(false);
             setEditingAccount(null);
         } catch (error: unknown) {
@@ -161,7 +171,9 @@ export default function AccountsPage() {
 
         try {
             await deleteAccount(accountToDelete.id).unwrap();
-            toast.success("Account deleted successfully");
+            toast.success("Account deleted successfully", {
+                description: "This account has been removed from your list.",
+            });
             setIsDeleteDialogOpen(false);
             setAccountToDelete(null);
         } catch (error: unknown) {
