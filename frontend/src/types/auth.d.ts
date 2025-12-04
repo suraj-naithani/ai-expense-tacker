@@ -89,5 +89,4 @@ export type SessionUser = {
     updatedAt: string | Date;
 };
 
-// 4. RE-EXPORT EVERYTHING (so you can do: import { User, EmailPasswordSignup } from "@/types")
 export * from "./index";

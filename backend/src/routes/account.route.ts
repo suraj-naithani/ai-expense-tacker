@@ -1,0 +1,19 @@
+import express from "express";
+import { createAccount, deleteAccount, getAccounts, updateAccount } from "../controllers/account.controller.js";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import { validate, validateParams } from "../middleware/validate.middleware.js";
+import { createAccountSchema, deleteAccountParamSchema, updateAccountSchema } from "../validators/account.validator.js";
+
+const app = express.Router();
+
+app.use(authMiddleware);
+
+app.post("/create-account", validate(createAccountSchema), createAccount);
+
+app.get("/get-account", getAccounts);
+
+app.patch("/update-account/:id", validate(updateAccountSchema), updateAccount);
+
+app.delete("/delete-account/:id", validateParams(deleteAccountParamSchema), deleteAccount);
+
+export default app;

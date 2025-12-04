@@ -1,104 +1,191 @@
 "use client";
 
-import { Plus, Wallet } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Edit2, MoreVertical, Plus, Trash2, Wallet } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
     AddAccountDialog,
     type AccountFormValues,
 } from "@/components/dialog/AddAccountDialog";
+import { DeleteAccountDialog } from "@/components/dialog/DeleteAccountDialog";
+import { EditAccountDialog } from "@/components/dialog/EditAccountDialog";
+import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import {
+    formatAccountType,
+    mapAccountTypeToApi,
+    mapAccountsFromApi,
+} from "@/lib/utils";
+import {
+    useCreateAccountMutation,
+    useDeleteAccountMutation,
+    useGetAccountsQuery,
+    useUpdateAccountMutation,
+} from "@/redux/api/accountApi";
+import { toast } from "sonner";
 
 type Account = AccountFormValues;
 
-const initialAccounts: Account[] = [
-    {
-        id: "1",
-        name: "Work",
-        type: "current",
-        initialBalance: 5941,
-        isDefault: true,
-    },
-    {
-        id: "2",
-        name: "Savings",
-        type: "savings",
-        initialBalance: 12500,
-        isDefault: false,
-    },
-    {
-        id: "3",
-        name: "Cash Wallet",
-        type: "cash",
-        initialBalance: 240,
-        isDefault: false,
-    },
-];
-
-const formatAccountType = (type: Account["type"]) => {
-    switch (type) {
-        case "current":
-            return "Current account";
-        case "savings":
-            return "Savings account";
-        case "credit-card":
-            return "Credit card";
-        case "cash":
-            return "Cash";
-        default:
-            return type;
-    }
-};
-
 export default function AccountsPage() {
-    const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+    const { data, isLoading, isError } = useGetAccountsQuery();
+    const [createAccount] = useCreateAccountMutation();
+    const [updateAccount] = useUpdateAccountMutation();
+    const [deleteAccount] = useDeleteAccountMutation();
+
+    useEffect(() => {
+        if (data?.data) {
+            setAccounts(mapAccountsFromApi(data.data));
+        }
+    }, [data]);
 
     const defaultAccountId = useMemo(
         () => accounts.find((a) => a.isDefault)?.id,
         [accounts],
     );
 
-    const handleCreateAccount = (account: AccountFormValues) => {
-        setAccounts((prev) => {
-            let updated = [...prev];
+    const handleCreateAccount = async (account: AccountFormValues) => {
+        try {
+            const payload = {
+                name: account.name,
+                type: mapAccountTypeToApi(account.type),
+                balance: account.initialBalance,
+                isDefault: account.isDefault,
+            };
 
-            if (account.isDefault) {
-                updated = updated.map((a) => ({ ...a, isDefault: false }));
-            }
-
-            return [
-                ...updated,
-                {
-                    ...account,
-                    initialBalance: account.initialBalance,
-                },
-            ];
-        });
+            await createAccount(payload).unwrap();
+            toast.success("Account created successfully");
+            setIsDialogOpen(false);
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to create account. Please try again.";
+            toast.error(errorMessage);
+        }
     };
 
-    const handleToggleDefault = (id: string) => {
-        setAccounts((prev) =>
-            prev.map((account) => ({
-                ...account,
-                isDefault: account.id === id,
-            })),
+    const handleToggleDefault = async (id: string) => {
+        const accountToUpdate = accounts.find((account) => account.id === id);
+        if (!accountToUpdate) return;
+
+        try {
+            const payload = {
+                name: accountToUpdate.name,
+                type: mapAccountTypeToApi(accountToUpdate.type),
+                balance: accountToUpdate.initialBalance,
+                isDefault: true,
+            };
+
+            await updateAccount({ id, body: payload }).unwrap();
+            toast.success("Default account updated successfully");
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to update default account. Please try again.";
+            toast.error(errorMessage);
+        }
+    };
+
+    const handleSaveEdit = async (updated: AccountFormValues) => {
+        if (!updated.id) return;
+
+        try {
+            const payload = {
+                name: updated.name,
+                type: mapAccountTypeToApi(updated.type),
+                balance: updated.initialBalance,
+                isDefault: updated.isDefault,
+            };
+
+            await updateAccount({ id: updated.id, body: payload }).unwrap();
+            toast.success("Account updated successfully");
+            setIsEditDialogOpen(false);
+            setEditingAccount(null);
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to update account. Please try again.";
+            toast.error(errorMessage);
+        }
+    };
+
+    const handleOpenEdit = (account: Account) => {
+        setEditingAccount(account);
+        setIsEditDialogOpen(true);
+    };
+
+    const handleOpenDelete = (account: Account) => {
+        setAccountToDelete(account);
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!accountToDelete) return;
+
+        try {
+            await deleteAccount(accountToDelete.id).unwrap();
+            toast.success("Account deleted successfully");
+            setIsDeleteDialogOpen(false);
+            setAccountToDelete(null);
+        } catch (error: unknown) {
+            const errorMessage =
+                (error as { data?: { message?: string } })?.data?.message ||
+                "Failed to delete account. Please try again.";
+            toast.error(errorMessage);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold">Accounts</h1>
+                    <p className="text-muted-foreground">
+                        Loading your accounts...
+                    </p>
+                </div>
+            </div>
         );
-    };
+    }
+
+    if (isError) {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold">Accounts</h1>
+                    <p className="text-muted-foreground">
+                        Failed to load accounts. Please try again later.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Reports</h1>
+                    <h1 className="text-2xl font-bold">Accounts</h1>
                     <p className="text-muted-foreground">
-                        Analyze your financial data and trends
+                        Manage the accounts you use for transactions
                     </p>
                 </div>
             </div>
@@ -108,7 +195,7 @@ export default function AccountsPage() {
                 <button
                     type="button"
                     onClick={() => setIsDialogOpen(true)}
-                    className="group relative flex aspect-[16/9] w-full items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] text-muted-foreground outline-none transition hover:border-[#6366f1] hover:bg-[var(--card-hover)] focus-visible:ring-2 focus-visible:ring-[#6366f1]"
+                    className="group relative flex min-h-[150px] w-full items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] text-muted-foreground outline-none transition hover:border-[#6366f1] hover:bg-[var(--card-hover)] focus-visible:ring-2 focus-visible:ring-[#6366f1]"
                 >
                     <div className="flex flex-col items-center gap-2">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)] text-[#6366f1] shadow-sm group-hover:border-[#6366f1]">
@@ -121,10 +208,10 @@ export default function AccountsPage() {
                 {accounts.map((account) => (
                     <Card
                         key={account.id}
-                        className="group flex aspect-[16/9] w-full flex-col justify-between overflow-hidden rounded-2xl border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-md"
+                        className="group flex w-full min-h-[150px] flex-col justify-between overflow-hidden rounded-2xl border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-md"
                     >
-                        <CardHeader className="flex flex-row items-start justify-between pb-1">
-                            <div className="space-y-2">
+                        <CardHeader className="flex flex-row items-start justify-between pb-0.5">
+                            <div className="space-y-1">
                                 <CardTitle className="text-sm font-medium text-muted-foreground">
                                     {account.name}
                                 </CardTitle>
@@ -138,18 +225,51 @@ export default function AccountsPage() {
                                     {formatAccountType(account.type)}
                                 </span>
                             </div>
-                            <div className="flex flex-col items-end gap-1">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-[var(--card-hover)] cursor-pointer"
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="bg-[var(--card)] border-[var(--border)]"
+                                >
+                                    <DropdownMenuItem
+                                        onClick={() => handleOpenEdit(account)}
+                                        className="text-xs cursor-pointer"
+                                    >
+                                        <Edit2 className="mr-2 h-3 w-3" />
+                                        Edit account
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => handleOpenDelete(account)}
+                                        className="text-xs text-destructive focus:text-destructive cursor-pointer"
+                                        variant="destructive"
+                                    >
+                                        <Trash2 className="mr-2 h-3 w-3" />
+                                        Delete account
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-between pt-0 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2 text-[11px]">
                                 <Switch
                                     checked={account.isDefault}
-                                    onCheckedChange={() => handleToggleDefault(account.id)}
+                                    onCheckedChange={() =>
+                                        handleToggleDefault(account.id)
+                                    }
                                 />
                                 <span className="text-[11px] text-muted-foreground">
                                     {account.isDefault ? "Default" : "Make default"}
                                 </span>
                             </div>
-                        </CardHeader>
-                        <CardContent className="flex items-end justify-between pt-0 text-xs text-muted-foreground">
-                            <div className="flex-1" />
                             <div className="flex items-center gap-1 text-[11px]">
                                 <Wallet className="h-3 w-3 text-muted-foreground" />
                                 <span>
@@ -167,6 +287,20 @@ export default function AccountsPage() {
                 open={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
                 onSave={handleCreateAccount}
+            />
+
+            <EditAccountDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                account={editingAccount}
+                onSave={handleSaveEdit}
+            />
+
+            <DeleteAccountDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={setIsDeleteDialogOpen}
+                accountName={accountToDelete?.name}
+                onConfirm={handleConfirmDelete}
             />
         </div>
     );

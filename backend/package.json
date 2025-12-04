@@ -8,12 +8,13 @@
     "build": "cross-env NODE_ENV=production tsc",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "test": "echo \"Backend test passed (placeholder)\"",
-    "prisma:dev:generate": "dotenv -e .env.development -- prisma generate",
-    "prisma:dev:push": "dotenv -e .env.development -- prisma db push",
     "prisma:dev:migrate": "dotenv -e .env.development -- prisma migrate dev --name init",
-    "prisma:prod:generate": "dotenv -e .env.production -- prisma generate",
+    "prisma:dev:push": "dotenv -e .env.development -- prisma db push",
+    "prisma:dev:generate": "dotenv -e .env.development -- prisma generate",
+    "prisma:dev:reset": "dotenv -e .env.development -- prisma migrate reset",
+    "prisma:prod:migrate": "dotenv -e .env.production -- prisma migrate dev --name init",
     "prisma:prod:push": "dotenv -e .env.production -- prisma db push",
-    "prisma:prod:migrate": "dotenv -e .env.production -- prisma migrate dev --name init"
+    "prisma:prod:generate": "dotenv -e .env.production -- prisma generate"
   },
   "author": "",
   "license": "ISC",
