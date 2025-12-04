@@ -7,6 +7,7 @@ import {
     AddAccountDialog,
     type AccountFormValues,
 } from "@/components/dialog/AddAccountDialog";
+import { Loader } from "@/components/loader";
 import { DeleteAccountDialog } from "@/components/dialog/DeleteAccountDialog";
 import { EditAccountDialog } from "@/components/dialog/EditAccountDialog";
 import { Button } from "@/components/ui/button";
@@ -46,9 +47,10 @@ export default function AccountsPage() {
     const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
-    const { data, isLoading, isError } = useGetAccountsQuery();
+    const { data, isLoading } = useGetAccountsQuery();
     const [createAccount] = useCreateAccountMutation();
-    const [updateAccount] = useUpdateAccountMutation();
+    const [updateAccount, { isLoading: isUpdatingAccount }] =
+        useUpdateAccountMutation();
     const [deleteAccount] = useDeleteAccountMutation();
 
     useEffect(() => {
@@ -86,6 +88,15 @@ export default function AccountsPage() {
         const accountToUpdate = accounts.find((account) => account.id === id);
         if (!accountToUpdate) return;
 
+        if (accountToUpdate.isDefault) {
+            toast.info("The default account cannot be deselected.");
+            return;
+        }
+
+        if (isUpdatingAccount) return;
+
+        const loadingToast = toast.loading("Updating default account...");
+
         try {
             const payload = {
                 name: accountToUpdate.name,
@@ -101,11 +112,15 @@ export default function AccountsPage() {
                 (error as { data?: { message?: string } })?.data?.message ||
                 "Failed to update default account. Please try again.";
             toast.error(errorMessage);
+        } finally {
+            toast.dismiss(loadingToast);
         }
     };
 
     const handleSaveEdit = async (updated: AccountFormValues) => {
         if (!updated.id) return;
+
+        const loadingToast = toast.loading("Updating account...");
 
         try {
             const payload = {
@@ -124,6 +139,8 @@ export default function AccountsPage() {
                 (error as { data?: { message?: string } })?.data?.message ||
                 "Failed to update account. Please try again.";
             toast.error(errorMessage);
+        } finally {
+            toast.dismiss(loadingToast);
         }
     };
 
@@ -140,6 +157,8 @@ export default function AccountsPage() {
     const handleConfirmDelete = async () => {
         if (!accountToDelete) return;
 
+        const loadingToast = toast.loading("Deleting account...");
+
         try {
             await deleteAccount(accountToDelete.id).unwrap();
             toast.success("Account deleted successfully");
@@ -150,34 +169,10 @@ export default function AccountsPage() {
                 (error as { data?: { message?: string } })?.data?.message ||
                 "Failed to delete account. Please try again.";
             toast.error(errorMessage);
+        } finally {
+            toast.dismiss(loadingToast);
         }
     };
-
-    if (isLoading) {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold">Accounts</h1>
-                    <p className="text-muted-foreground">
-                        Loading your accounts...
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
-    if (isError) {
-        return (
-            <div className="space-y-6">
-                <div>
-                    <h1 className="text-2xl font-bold">Accounts</h1>
-                    <p className="text-muted-foreground">
-                        Failed to load accounts. Please try again later.
-                    </p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6">
@@ -191,96 +186,104 @@ export default function AccountsPage() {
             </div>
 
             <div className="grid gap-4 md:gap-5 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-                {/* Add new account card */}
-                <button
-                    type="button"
-                    onClick={() => setIsDialogOpen(true)}
-                    className="group relative flex min-h-[150px] w-full items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] text-muted-foreground outline-none transition hover:border-[#6366f1] hover:bg-[var(--card-hover)] focus-visible:ring-2 focus-visible:ring-[#6366f1]"
-                >
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)] text-[#6366f1] shadow-sm group-hover:border-[#6366f1]">
-                            <Plus className="h-5 w-5" />
-                        </div>
-                        <p className="text-sm font-medium">Add New Account</p>
+                {isLoading && accounts ? (
+                    <div className="flex min-h-[60vh] items-center justify-center col-span-full">
+                        <Loader />
                     </div>
-                </button>
+                ) : (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => setIsDialogOpen(true)}
+                            className="group relative flex min-h-[150px] w-full items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] text-muted-foreground outline-none transition hover:border-[#6366f1] hover:bg-[var(--card-hover)] focus-visible:ring-2 focus-visible:ring-[#6366f1]"
+                        >
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--background)] text-[#6366f1] shadow-sm group-hover:border-[#6366f1]">
+                                    <Plus className="h-5 w-5" />
+                                </div>
+                                <p className="text-sm font-medium">Add New Account</p>
+                            </div>
+                        </button>
 
-                {accounts.map((account) => (
-                    <Card
-                        key={account.id}
-                        className="group flex w-full min-h-[150px] flex-col justify-between overflow-hidden rounded-2xl border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-md"
-                    >
-                        <CardHeader className="flex flex-row items-start justify-between pb-0.5">
-                            <div className="space-y-1">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">
-                                    {account.name}
-                                </CardTitle>
-                                <p className="text-2xl font-semibold tracking-tight">
-                                    ₹
-                                    {account.initialBalance.toLocaleString("en-IN", {
-                                        maximumFractionDigits: 2,
-                                    })}
-                                </p>
-                                <span className="text-xs text-muted-foreground">
-                                    {formatAccountType(account.type)}
-                                </span>
-                            </div>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-[var(--card-hover)] cursor-pointer"
-                                    >
-                                        <MoreVertical className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent
-                                    align="end"
-                                    className="bg-[var(--card)] border-[var(--border)]"
-                                >
-                                    <DropdownMenuItem
-                                        onClick={() => handleOpenEdit(account)}
-                                        className="text-xs cursor-pointer"
-                                    >
-                                        <Edit2 className="mr-2 h-3 w-3" />
-                                        Edit account
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => handleOpenDelete(account)}
-                                        className="text-xs text-destructive focus:text-destructive cursor-pointer"
-                                        variant="destructive"
-                                    >
-                                        <Trash2 className="mr-2 h-3 w-3" />
-                                        Delete account
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </CardHeader>
-                        <CardContent className="flex items-center justify-between pt-0 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2 text-[11px]">
-                                <Switch
-                                    checked={account.isDefault}
-                                    onCheckedChange={() =>
-                                        handleToggleDefault(account.id)
-                                    }
-                                />
-                                <span className="text-[11px] text-muted-foreground">
-                                    {account.isDefault ? "Default" : "Make default"}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-1 text-[11px]">
-                                <Wallet className="h-3 w-3 text-muted-foreground" />
-                                <span>
-                                    {defaultAccountId === account.id
-                                        ? "Default account"
-                                        : "Secondary account"}
-                                </span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
+                        {accounts.map((account) => (
+                            <Card
+                                key={account.id}
+                                className="group flex w-full min-h-[150px] flex-col justify-between overflow-hidden rounded-2xl border-[var(--border)] bg-[var(--card)] shadow-sm transition hover:border-[#6366f1]/70 hover:shadow-md"
+                            >
+                                <CardHeader className="flex flex-row items-start justify-between pb-0.5">
+                                    <div className="space-y-1">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                                            {account.name}
+                                        </CardTitle>
+                                        <p className="text-2xl font-semibold tracking-tight">
+                                            ₹
+                                            {account.initialBalance.toLocaleString("en-IN", {
+                                                maximumFractionDigits: 2,
+                                            })}
+                                        </p>
+                                        <span className="text-xs text-muted-foreground">
+                                            {formatAccountType(account.type)}
+                                        </span>
+                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-[var(--card-hover)] cursor-pointer"
+                                            >
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent
+                                            align="end"
+                                            className="bg-[var(--card)] border-[var(--border)]"
+                                        >
+                                            <DropdownMenuItem
+                                                onClick={() => handleOpenEdit(account)}
+                                                className="text-xs cursor-pointer"
+                                            >
+                                                <Edit2 className="mr-2 h-3 w-3" />
+                                                Edit account
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => handleOpenDelete(account)}
+                                                className="text-xs text-destructive focus:text-destructive cursor-pointer"
+                                                variant="destructive"
+                                            >
+                                                <Trash2 className="mr-2 h-3 w-3" />
+                                                Delete account
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </CardHeader>
+                                <CardContent className="flex items-center justify-between pt-0 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-2 text-[11px]">
+                                        <Switch
+                                            checked={account.isDefault}
+                                            disabled={isUpdatingAccount}
+                                            onCheckedChange={() =>
+                                                handleToggleDefault(account.id)
+                                            }
+                                        />
+                                        <span className="text-[11px] text-muted-foreground">
+                                            {account.isDefault ? "Default" : "Make default"}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[11px]">
+                                        <Wallet className="h-3 w-3 text-muted-foreground" />
+                                        <span>
+                                            {defaultAccountId === account.id
+                                                ? "Default account"
+                                                : "Secondary account"}
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </>
+                )}
             </div>
 
             <AddAccountDialog
