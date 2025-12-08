@@ -1,9 +1,11 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { accountApi } from "./api/accountApi";
+import defaultAccountReducer from "./slices/defaultAccountSlice";
 
 export const store = configureStore({
     reducer: {
         [accountApi.reducerPath]: accountApi.reducer,
+        defaultAccount: defaultAccountReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware().concat(accountApi.middleware),
