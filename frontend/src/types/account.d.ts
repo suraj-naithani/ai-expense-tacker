@@ -51,3 +51,7 @@ export interface AccountState {
     accounts: FinancialAccount[];
     isLoading: boolean;
 }
+
+export interface DefaultAccountState {
+    id: string | null;
+}

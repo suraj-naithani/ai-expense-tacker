@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Sidebar from "../../components/sidebar";
 import Navbar from "@/components/navbar";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 
 interface LayoutProps {
   children: ReactNode;
@@ -12,6 +13,9 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [mounted, setMounted] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Initialize default account ID on all dashboard pages
+  useDefaultAccount();
 
   useEffect(() => {
     const isLargeScreen = window.innerWidth >= 1024;
