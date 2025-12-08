@@ -7,13 +7,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CalendarIcon } from "lucide-react";
-import moment from "moment";
 import type React from "react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -24,12 +21,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import type {
+  TransactionFormState,
+  CreateTransactionPayload,
+} from "@/types/transaction";
 
 const categories = [
   { value: "food", label: "Food & Dining", icon: "🍽️" },
@@ -49,42 +47,57 @@ interface AddExpenseModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const initialFormState: TransactionFormState = {
+  type: "expense",
+  amount: "",
+  category: "",
+  description: "",
+  isRecurring: false,
+  recurringInterval: "",
+};
+
 export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [date, setDate] = useState<Date>(new Date());
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [openCategoryDropdown, setOpenCategoryDropdown] = useState(false);
-  const [openDatePicker, setOpenDatePicker] = useState(false);
+  const [formState, setFormState] = useState<TransactionFormState>(initialFormState);
+  const defaultAccountId = useDefaultAccount();
+
+  const updateField = <K extends keyof TransactionFormState>(
+    field: K,
+    value: TransactionFormState[K],
+  ) => {
+    setFormState((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!amount || !category) {
+    if (!formState.amount || !formState.category || !defaultAccountId) {
       return;
     }
 
-    const expense = {
-      id: Date.now(),
-      amount: Number.parseFloat(amount),
-      description,
-      category,
-      date: date.toISOString(),
-      createdAt: new Date().toISOString(),
+    if (formState.isRecurring && !formState.recurringInterval) {
+      return;
+    }
+
+    const transaction: CreateTransactionPayload = {
+      type: formState.type,
+      amount: Number.parseFloat(formState.amount),
+      category: formState.category,
+      description: formState.description,
+      accountId: defaultAccountId,
+      isRecurring: formState.isRecurring,
+      recurringInterval: formState.isRecurring
+        ? (formState.recurringInterval as CreateTransactionPayload["recurringInterval"])
+        : undefined,
     };
 
-    console.log("New expense:", expense);
+    console.log("New transaction:", transaction);
 
     resetForm();
     onOpenChange(false);
   };
 
   const resetForm = () => {
-    setAmount("");
-    setDescription("");
-    setCategory("");
-    setDate(new Date());
+    setFormState(initialFormState);
   };
 
   return (
@@ -95,35 +108,41 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[425px] bg-[var(--background)] border-[var(--border)] z-110">
           <DialogHeader>
-            <DialogTitle className="text-xl">Add Expense</DialogTitle>
+            <DialogTitle className="text-xl">Add Transaction</DialogTitle>
             <DialogDescription>
-              Enter the details of your expense below.
+              Enter the details of your transaction below.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount *</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    ₹
-                  </span>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="pl-7 bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
-                </div>
+                <Label htmlFor="type">Type *</Label>
+                <Select
+                  value={formState.type}
+                  onValueChange={(value: "expense" | "income") =>
+                    updateField("type", value)
+                  }
+                >
+                  <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
+                    <SelectItem value="expense" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                      Expense
+                    </SelectItem>
+                    <SelectItem value="income" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                      Income
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
-                <Select value={category} onValueChange={setCategory}>
+                <Select
+                  value={formState.category}
+                  onValueChange={(value) => updateField("category", value)}
+                >
                   <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -143,51 +162,77 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="amount">Amount *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  ₹
+                </span>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="pl-7 bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
+                  value={formState.amount}
+                  onChange={(e) => updateField("amount", e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
-                placeholder="Enter a description for this expense"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter description"
+                value={formState.description}
+                onChange={(e) => updateField("description", e.target.value)}
                 className="bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Popover open={openDatePicker} onOpenChange={setOpenDatePicker}>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date"
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal cursor-pointer bg-[var(--card)] border-[var(--border)] hover:bg-[var(--card-hover)]"
+            <div className="space-y-4">
+              <div className="flex items-center justify-between space-x-2">
+                <div className="space-y-0.5">
+                  <Label htmlFor="recurring">Recurring Transaction</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Set up a recurring schedule for this transaction
+                  </p>
+                </div>
+                <Switch
+                  id="recurring"
+                  checked={formState.isRecurring}
+                  onCheckedChange={(checked) => updateField("isRecurring", checked)}
+                />
+              </div>
+
+              {formState.isRecurring && (
+                <div className="space-y-2">
+                  <Label htmlFor="recurringInterval">Recurring Interval *</Label>
+                  <Select
+                    value={formState.recurringInterval}
+                    onValueChange={(value) => updateField("recurringInterval", value)}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? (
-                      moment(date).format("LL")
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-0 bg-[var(--card)] border-[var(--border)] z-130"
-                  align="start"
-                >
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(date) => {
-                      if (date) {
-                        setDate(date);
-                        setOpenDatePicker(false);
-                      }
-                    }}
-                    initialFocus
-                    className="bg-[var(--card)] z-130"
-                  />
-                </PopoverContent>
-              </Popover>
+                    <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
+                      <SelectValue placeholder="Select interval" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
+                      <SelectItem value="daily" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                        Daily
+                      </SelectItem>
+                      <SelectItem value="weekly" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                        Weekly
+                      </SelectItem>
+                      <SelectItem value="monthly" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                        Monthly
+                      </SelectItem>
+                      <SelectItem value="yearly" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                        Yearly
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
@@ -206,7 +251,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
                 type="submit"
                 className="bg-[#6366f1] hover:bg-[#4f46e5] cursor-pointer"
               >
-                Add Expense
+                Create
               </Button>
             </DialogFooter>
           </form>
