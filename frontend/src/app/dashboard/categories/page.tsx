@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
+import { AddCategoryDialog } from "@/components/dialog/AddCategoryDialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -119,7 +119,7 @@ const getInitials = (name: string) => {
 export default function Page() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -138,6 +138,14 @@ export default function Page() {
               Manage and track all your financial transactions
             </p>
           </div>
+          <Button
+            size="sm"
+            className="bg-[#6366f1] hover:bg-[#4f46e5] text-white h-9 px-4"
+            onClick={() => setIsAddCategoryOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
         </div>
 
         <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
@@ -202,14 +210,6 @@ export default function Page() {
                   Manage your expense categories
                 </CardDescription>
               </div>
-              <Button
-                size="sm"
-                className="bg-[#6366f1] hover:bg-[#4f46e5] text-white h-8 px-3"
-                onClick={() => setIsAddExpenseOpen(true)}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Category
-              </Button>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -337,9 +337,9 @@ export default function Page() {
         </div>
       </div>
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
+      <AddCategoryDialog
+        open={isAddCategoryOpen}
+        onOpenChange={setIsAddCategoryOpen}
       />
     </>
   );
