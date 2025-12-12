@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import EmojiPicker, {
     EmojiStyle,
@@ -20,34 +20,45 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { AddCategoryDialogProps } from "@/types/category";
+import type { UpdateCategoryDialogProps } from "@/types/category";
 
-export function AddCategoryDialog({
+export function UpdateCategoryDialog({
     open,
     onOpenChange,
+    category,
     onSave,
-}: AddCategoryDialogProps) {
+}: UpdateCategoryDialogProps) {
     const [name, setName] = useState("");
     const [icon, setIcon] = useState<string>("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-    const resetForm = () => {
-        setName("");
-        setIcon("");
-        setShowEmojiPicker(false);
+    useEffect(() => {
+        if (open && category) {
+            setName(category.name);
+            setIcon(category.icon);
+        }
+    }, [open, category]);
+
+    const handleClose = (next: boolean) => {
+        if (!next) {
+            setName("");
+            setIcon("");
+            setShowEmojiPicker(false);
+        }
+        onOpenChange(next);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!name || !icon) return;
+        if (!category || !name || !icon) return;
 
         onSave({
+            id: category.id,
             name: name.trim(),
             icon,
         });
 
-        resetForm();
-        onOpenChange(false);
+        handleClose(false);
     };
 
     const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -55,25 +66,19 @@ export function AddCategoryDialog({
         setShowEmojiPicker(false);
     };
 
+    if (!category) return null;
+
     return (
         <>
             {open && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-100" />
             )}
-            <Dialog
-                open={open}
-                onOpenChange={(next) => {
-                    if (!next) {
-                        resetForm();
-                    }
-                    onOpenChange(next);
-                }}
-            >
+            <Dialog open={open} onOpenChange={handleClose}>
                 <DialogContent className="sm:max-w-[425px] bg-[var(--card)] border-[var(--border)] z-110">
                     <DialogHeader>
-                        <DialogTitle>Create Category</DialogTitle>
+                        <DialogTitle>Update Category</DialogTitle>
                         <DialogDescription>
-                            Add a new category to organize your expenses.
+                            Update your category information.
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4 py-2">
@@ -142,7 +147,7 @@ export function AddCategoryDialog({
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => onOpenChange(false)}
+                                onClick={() => handleClose(false)}
                                 className="border-[var(--border)] hover:bg-[var(--card-hover)] cursor-pointer"
                             >
                                 Cancel
@@ -151,7 +156,7 @@ export function AddCategoryDialog({
                                 type="submit"
                                 className="bg-[#6366f1] hover:bg-[#4f46e5] cursor-pointer"
                             >
-                                Create Category
+                                Save changes
                             </Button>
                         </DialogFooter>
                     </form>
