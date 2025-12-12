@@ -25,6 +25,7 @@ model User {
   accounts      Account[]
 
   financialAccounts FinancialAccount[]
+  categories       Category[]
 
   @@unique([email])
   @@map("user")
@@ -99,5 +100,20 @@ model FinancialAccount {
   updatedAt DateTime            @updatedAt
 
   @@map("financial_account")
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name      String
+  icon      String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("category")
   @@index([userId])
 }

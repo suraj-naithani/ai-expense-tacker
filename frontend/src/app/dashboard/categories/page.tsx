@@ -2,14 +2,20 @@
 
 import {
   DollarSign,
-  MoreHorizontal,
+  Loader2,
+  MoreVertical,
   Plus,
   TrendingDown,
   TrendingUp,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
+import { AddCategoryDialog } from "@/components/dialog/AddCategoryDialog";
+import { DeleteCategoryDialog } from "@/components/dialog/DeleteCategoryDialog";
+import { UpdateCategoryDialog } from "@/components/dialog/UpdateCategoryDialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,6 +36,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Cell, Pie, PieChart } from "recharts";
+import {
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+} from "@/redux/api/categoryApi";
+import type { Category } from "@/types/category";
 
 const categoryData = [
   { category: "Food", amount: 450, percentage: 32.1, color: "#3b82f6" },
@@ -117,16 +130,107 @@ const getInitials = (name: string) => {
 };
 
 export default function Page() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
-  const filteredCategories = categories.filter((category) =>
-    category.name.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  const { data: categoriesResponse, isLoading } = useGetCategoriesQuery();
+  const [createCategory] = useCreateCategoryMutation();
+  const [updateCategory] = useUpdateCategoryMutation();
+  const [deleteCategory] = useDeleteCategoryMutation();
 
-  const totalBudget = categories.reduce((sum, cat) => sum + cat.budget, 0);
-  const totalSpent = categories.reduce((sum, cat) => sum + cat.spent, 0);
+  const apiCategories: Category[] = categoriesResponse?.data || [];
+
+  const totalBudget = 3800;
+  const totalSpent = 3000;
+
+  const handleCreateCategory = async (categoryData: {
+    name: string;
+    icon: string;
+  }) => {
+    const loadingToast = toast.loading("Creating category...");
+
+    try {
+      const payload = {
+        name: categoryData.name,
+        icon: categoryData.icon,
+      };
+
+      await createCategory(payload).unwrap();
+      toast.success("Category created successfully", {
+        description: "You can now use this category for your expenses.",
+      });
+      setIsAddCategoryOpen(false);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to create category. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
+  const handleSaveEdit = async (updated: { id: string; name: string; icon: string }) => {
+    if (!updated.id) return;
+
+    const loadingToast = toast.loading("Updating category...");
+
+    try {
+      const payload = {
+        name: updated.name,
+        icon: updated.icon,
+      };
+
+      await updateCategory({ id: updated.id, body: payload }).unwrap();
+      toast.success("Category updated successfully", {
+        description: "Your changes have been saved.",
+      });
+      setIsEditDialogOpen(false);
+      setEditingCategory(null);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to update category. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!categoryToDelete) return;
+
+    const loadingToast = toast.loading("Deleting category...");
+
+    try {
+      await deleteCategory(categoryToDelete.id).unwrap();
+      toast.success("Category deleted successfully", {
+        description: "This category has been removed from your list.",
+      });
+      setIsDeleteDialogOpen(false);
+      setCategoryToDelete(null);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete category. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
+  const handleOpenEdit = (category: Category) => {
+    setEditingCategory(category);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleOpenDelete = (category: Category) => {
+    setCategoryToDelete(category);
+    setIsDeleteDialogOpen(true);
+  };
 
   return (
     <>
@@ -193,6 +297,126 @@ export default function Page() {
           </Card>
         </div>
 
+        <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold">Your Categories</CardTitle>
+                <CardDescription className="text-sm mt-1">
+                  {isLoading ? "Loading..." : `${apiCategories.length} ${apiCategories.length === 1 ? "category" : "categories"} created`}
+                </CardDescription>
+              </div>
+              <Button
+                size="sm"
+                className="bg-[#6366f1] hover:bg-[#4f46e5] text-white h-9 px-4"
+                onClick={() => setIsAddCategoryOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Category
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : apiCategories.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center border border-dashed border-[var(--border)] rounded-lg bg-[var(--card-hover)]/50">
+                <div className="w-14 h-14 rounded-full bg-[var(--card-hover)] flex items-center justify-center mb-4">
+                  <DollarSign className="h-7 w-7 text-muted-foreground" />
+                </div>
+                <h3 className="text-base font-semibold mb-1">No categories yet</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Create your first category to get started
+                </p>
+                <Button
+                  size="sm"
+                  className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+                  onClick={() => setIsAddCategoryOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  Create Category
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
+                {apiCategories.map((category) => {
+                  return (
+                    <div
+                      key={category.id}
+                      className="relative p-3 bg-[var(--card)] border border-[var(--border)] rounded-xl hover:shadow-lg hover:border-[var(--card-hover)] transition-all duration-300 group cursor-pointer"
+                    >
+                      {/* 3-dot menu - subtle on hover */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[var(--card-hover)]"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="bg-[var(--card)] border-[var(--border)] w-32"
+                          >
+                            <DropdownMenuItem
+                              className="text-xs cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenEdit(category);
+                              }}
+                            >
+                              <Pencil className="h-3 w-3 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-xs text-red-400 focus:text-red-400 cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDelete(category);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      {/* Circular icon */}
+                      <div className="flex justify-center mb-3 mt-1">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl bg-[var(--card-hover)] border border-[var(--border)] shadow-sm group-hover:shadow-md transition-shadow">
+                          {category.icon || "📁"}
+                        </div>
+                      </div>
+
+                      {/* Category Name - bold */}
+                      <h3 className="font-semibold text-sm text-center text-foreground truncate mb-2 px-1">
+                        {category.name}
+                      </h3>
+
+                      {/* Date badge */}
+                      <div className="flex items-center justify-center">
+                        <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-[var(--card-hover)] border border-[var(--border)] text-muted-foreground">
+                          {new Date(category.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric"
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="grid gap-4 grid-cols-1 md:gap-6 lg:grid-cols-8">
           <Card className="col-span-full lg:col-span-5 border-[var(--border)] bg-[var(--card)] shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -202,54 +426,21 @@ export default function Page() {
                   Manage your expense categories
                 </CardDescription>
               </div>
-              <Button
-                size="sm"
-                className="bg-[#6366f1] hover:bg-[#4f46e5] text-white h-8 px-3"
-                onClick={() => setIsAddExpenseOpen(true)}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Category
-              </Button>
             </CardHeader>
             <CardContent className="pt-0">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filteredCategories.map((category) => (
+                {categories.map((category) => (
                   <div
                     key={category.id}
-                    className="group relative border border-[var(--border)] bg-[var(--card)] rounded-lg p-3 hover:bg-[var(--card-hover)] transition-all duration-200 cursor-pointer overflow-hidden"
+                    className="border border-[var(--border)] bg-[var(--card)] rounded-lg p-3"
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center mb-2">
                       <div
                         className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold"
                         style={{ backgroundColor: category.color }}
                       >
                         {getInitials(category.name)}
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 text-muted-foreground hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="bg-[var(--border)] border-[var(--card)]"
-                        >
-                          <DropdownMenuItem className="text-xs">
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-xs">
-                            View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-xs text-red-400">
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
                     </div>
 
                     <h3 className="font-medium text-sm mb-2 truncate">
@@ -264,11 +455,6 @@ export default function Page() {
                         {category.transactions} transactions
                       </div>
                     </div>
-
-                    <div
-                      className="absolute inset-x-0 bottom-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      style={{ backgroundColor: category.color }}
-                    />
                   </div>
                 ))}
               </div>
@@ -337,9 +523,24 @@ export default function Page() {
         </div>
       </div>
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
+      <AddCategoryDialog
+        open={isAddCategoryOpen}
+        onOpenChange={setIsAddCategoryOpen}
+        onSave={handleCreateCategory}
+      />
+
+      <UpdateCategoryDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        category={editingCategory}
+        onSave={handleSaveEdit}
+      />
+
+      <DeleteCategoryDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        categoryName={categoryToDelete?.name}
+        onConfirm={handleConfirmDelete}
       />
     </>
   );

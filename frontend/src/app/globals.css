@@ -137,3 +137,19 @@
 .animate-spin-slow {
   animation: spin-slow 1s linear infinite;
 }
+
+.epr-header .epr_-8ygbw8 .epr_-l19tlc input {
+  height: 34px;
+  font-size: 12px;
+}
+
+.epr-header .epr_-8ygbw8 .epr-skin-tones,
+#radix-_r_o_>form>div:nth-child(1)>div>div>div>aside>div.epr-body.epr_-l19tlc.epr_b8hfyo.epr_-mpla0i.epr_mw4zr1.epr_iogimd.epr_wtwvf4>ul>li:nth-child(2),
+#radix-_r_f_>form>div:nth-child(1)>div>div>div>aside>div.epr-body.epr_-l19tlc.epr_b8hfyo.epr_-mpla0i.epr_mw4zr1.epr_iogimd.epr_wtwvf4>ul>li>h2,
+.epr-header .epr-category-nav {
+  display: none;
+}
+
+#radix-_r_f_>form>div:nth-child(1)>div>div>div>aside>div.epr-body.epr_-l19tlc.epr_b8hfyo.epr_-mpla0i.epr_mw4zr1.epr_iogimd.epr_wtwvf4>ul>li>div>button>span {
+  font-size: 20px;
+}

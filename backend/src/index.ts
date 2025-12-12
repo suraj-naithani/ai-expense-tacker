@@ -11,6 +11,7 @@ import rateLimit from "express-rate-limit";
 import { connectDB } from "./utils/connection.js";
 
 import accountRoute from "./routes/account.route.js";
+import categoryRoute from "./routes/category.route.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/accounts", accountRoute);
+app.use("/api/v1/categories", categoryRoute);
 
 connectDB().then(() => {
     app.listen(PORT, () => {
