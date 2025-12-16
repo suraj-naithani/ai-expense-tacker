@@ -26,6 +26,7 @@ model User {
 
   financialAccounts FinancialAccount[]
   categories       Category[]
+  transactions     Transaction[]
 
   @@unique([email])
   @@map("user")
@@ -96,6 +97,9 @@ model FinancialAccount {
   balance   Float               @default(0)
   isDefault Boolean             @default(false)
 
+  // All transactions that use this financial account
+  transactions Transaction[]
+
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
@@ -114,6 +118,60 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+   // All transactions that use this category
+   transactions Transaction[]
+
   @@map("category")
   @@index([userId])
+}
+
+enum TransactionType {
+  EXPENSE
+  INCOME
+}
+
+enum RecurringInterval {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account   FinancialAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  amount      Float
+  type        TransactionType
+  description String?
+  date        DateTime
+
+  // Recurring template fields
+  isRecurring        Boolean           @default(false)
+  recurringInterval  RecurringInterval?
+  nextExecutionDate  DateTime?
+  endDate            DateTime?
+  isActive           Boolean           @default(false)
+
+  // Link occurrences to their template
+  parentRecurringId String?
+  parentRecurring   Transaction? @relation("RecurringChildren", fields: [parentRecurringId], references: [id])
+  children          Transaction[] @relation("RecurringChildren")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, isRecurring, isActive, nextExecutionDate])
+  @@index([accountId])
+  @@index([categoryId])
+  @@map("transaction")
 }
