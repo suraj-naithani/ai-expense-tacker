@@ -4,19 +4,13 @@ import { CreateTransactionRequest, TransactionFilters } from "../types/transacti
 import { calculateNextExecutionDate } from "../utils/dateCalculator.js";
 import { createOneTimeTransaction, createRecurringTemplateWithFirstOccurrence } from "../utils/transactionHelper.js";
 
-const parseDateOrNow = (value?: string) => {
-    if (!value) return new Date();
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return new Date();
-    return d;
-};
 
 export const createTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
     const body = req.body as CreateTransactionRequest;
 
     try {
-        const { accountId, categoryId, amount, type, description, date, isRecurring, recurringInterval } = body;
+        const { accountId, categoryId, amount, type, description, isRecurring, recurringInterval } = body;
 
         const account = await prisma.financialAccount.findFirst({
             where: { id: accountId, userId },
@@ -36,7 +30,6 @@ export const createTransaction = async (req: Request, res: Response) => {
             }
         }
 
-        const txDate = parseDateOrNow(date);
 
         if (isRecurring && recurringInterval) {
             const { template, occurrence } = await createRecurringTemplateWithFirstOccurrence({
@@ -46,7 +39,6 @@ export const createTransaction = async (req: Request, res: Response) => {
                 amount,
                 type,
                 description,
-                date: txDate,
                 recurringInterval,
             });
 
@@ -67,7 +59,6 @@ export const createTransaction = async (req: Request, res: Response) => {
             amount,
             type,
             description,
-            date: txDate,
         });
 
         return res.status(201).json({
@@ -85,20 +76,17 @@ export const getTransactions = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
 
     try {
-        const { page = "1", limit = "10", startDate, endDate, type, categoryId, accountId } =
+        const { page = "1", limit = "10", type, categoryId, accountId, isRecurring } =
             req.query as unknown as TransactionFilters;
 
         const pageNumber = Math.max(parseInt(page || "1", 10) || 1, 1);
         const limitNumber = Math.max(parseInt(limit || "10", 10) || 10, 1);
         const skip = (pageNumber - 1) * limitNumber;
 
-        const where: any = { userId };
-
-        if (startDate || endDate) {
-            where.date = {};
-            if (startDate) where.date.gte = new Date(startDate);
-            if (endDate) where.date.lte = new Date(endDate);
-        }
+        const where: any = {
+            userId,
+            isRecurring: isRecurring === "false" ? false : isRecurring === "true" ? true : undefined,
+        };
 
         if (type) where.type = type;
         if (categoryId) where.categoryId = categoryId;
@@ -107,9 +95,37 @@ export const getTransactions = async (req: Request, res: Response) => {
         const [transactions, total] = await Promise.all([
             prisma.transaction.findMany({
                 where,
-                orderBy: { date: "desc" },
+                orderBy: { createdAt: "desc" },
                 skip,
                 take: limitNumber,
+                select: {
+                    id: true,
+                    userId: true,
+                    amount: true,
+                    type: true,
+                    description: true,
+                    isRecurring: true,
+                    recurringInterval: true,
+                    nextExecutionDate: true,
+                    isActive: true,
+                    parentRecurringId: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    account: {
+                        select: {
+                            id: true,
+                            name: true,
+                            type: true,
+                        },
+                    },
+                    category: {
+                        select: {
+                            id: true,
+                            name: true,
+                            icon: true,
+                        },
+                    },
+                },
             }),
             prisma.transaction.count({ where }),
         ]);
@@ -128,29 +144,6 @@ export const getTransactions = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Get transactions error:", error);
         return res.status(500).json({ success: false, message: "Failed to fetch transactions" });
-    }
-};
-
-export const getRecurringTransactions = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id as string;
-
-    try {
-        const recurring = await prisma.transaction.findMany({
-            where: {
-                userId,
-                isRecurring: true,
-            },
-            orderBy: { createdAt: "desc" },
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: "Recurring transactions fetched successfully",
-            data: recurring,
-        });
-    } catch (error) {
-        console.error("Get recurring transactions error:", error);
-        return res.status(500).json({ success: false, message: "Failed to fetch recurring transactions" });
     }
 };
 

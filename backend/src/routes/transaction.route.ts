@@ -2,7 +2,6 @@ import express from "express";
 import {
     createTransaction,
     deleteTransaction,
-    getRecurringTransactions,
     getTransactions,
     toggleRecurring,
     updateRecurringTransaction,
@@ -23,8 +22,6 @@ app.use(authMiddleware);
 app.post("/create-transaction", validate(createTransactionSchema), createTransaction);
 
 app.get("/get-transactions", getTransactions);
-
-app.get("/get-recurring-transactions", getRecurringTransactions);
 
 app.patch("/update-recurring/:id", validate(updateRecurringSchema), updateRecurringTransaction);
 

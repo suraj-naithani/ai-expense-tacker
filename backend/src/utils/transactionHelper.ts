@@ -10,14 +10,11 @@ interface TemplateInput {
     amount: number;
     type: TransactionType;
     description?: string;
-    date: Date;
     recurringInterval: RecurringInterval;
 }
 
 export async function createRecurringTemplateWithFirstOccurrence(input: TemplateInput) {
-    const { userId, accountId, categoryId, amount, type, description, date, recurringInterval } = input;
-
-    const initialDate = date;
+    const { userId, accountId, categoryId, amount, type, description, recurringInterval } = input;
 
     // Create template transaction (recurring definition)
     const template = await prisma.transaction.create({
@@ -28,17 +25,15 @@ export async function createRecurringTemplateWithFirstOccurrence(input: Template
             amount,
             type,
             description: description ?? null,
-            date: initialDate,
             isRecurring: true,
             recurringInterval,
             isActive: true,
-            endDate: null,
-            nextExecutionDate: calculateNextExecutionDate(initialDate, recurringInterval),
+            nextExecutionDate: calculateNextExecutionDate(new Date(), recurringInterval),
         },
     });
 
     // Create first concrete occurrence (no balance update here)
-    const occurrence = await createOccurrenceFromTemplate(template, initialDate);
+    const occurrence = await createOccurrenceFromTemplate(template);
 
     return { template, occurrence };
 }
@@ -50,9 +45,8 @@ export async function createOneTimeTransaction(options: {
     amount: number;
     type: TransactionType;
     description?: string;
-    date: Date;
 }) {
-    const { userId, accountId, categoryId, amount, type, description, date } = options;
+    const { userId, accountId, categoryId, amount, type, description } = options;
 
     const tx = await prisma.transaction.create({
         data: {
@@ -62,11 +56,9 @@ export async function createOneTimeTransaction(options: {
             amount,
             type,
             description: description ?? null,
-            date,
             isRecurring: false,
             recurringInterval: null,
             isActive: false,
-            endDate: null,
             nextExecutionDate: null,
             parentRecurringId: null,
         },
@@ -76,7 +68,7 @@ export async function createOneTimeTransaction(options: {
 }
 
 // Create a concrete occurrence from a template (used by cron and on first creation).
-export async function createOccurrenceFromTemplate(template: Transaction, occurrenceDate: Date) {
+export async function createOccurrenceFromTemplate(template: Transaction) {
     const occurrence = await prisma.transaction.create({
         data: {
             userId: template.userId,
@@ -85,11 +77,9 @@ export async function createOccurrenceFromTemplate(template: Transaction, occurr
             amount: template.amount,
             type: template.type,
             description: template.description,
-            date: occurrenceDate,
             isRecurring: false,
             recurringInterval: null,
             isActive: false,
-            endDate: null,
             nextExecutionDate: null,
             parentRecurringId: template.id,
         },

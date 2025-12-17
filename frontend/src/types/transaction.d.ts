@@ -1,6 +1,6 @@
-export type TransactionType = "expense" | "income";
+export type TransactionType = "EXPENSE" | "INCOME";
 
-export type RecurringInterval = "daily" | "weekly" | "monthly" | "yearly";
+export type RecurringInterval = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
 export interface TransactionFormState {
     type: TransactionType;
@@ -12,27 +12,38 @@ export interface TransactionFormState {
 }
 
 export interface CreateTransactionPayload {
-    type: TransactionType;
-    amount: number;
-    category: string;
-    description: string;
     accountId: string;
-    isRecurring: boolean;
+    categoryId?: string;
+    amount: number;
+    type: TransactionType;
+    description?: string;
+    isRecurring?: boolean;
     recurringInterval?: RecurringInterval;
 }
 
 export interface Transaction {
     id: string;
-    type: TransactionType;
+    userId: string;
     amount: number;
-    category: string;
-    description: string;
-    accountId: string;
+    type: TransactionType;
+    description: string | null;
     isRecurring: boolean;
-    recurringInterval?: RecurringInterval;
-    date: string;
+    recurringInterval: RecurringInterval | null;
+    nextExecutionDate: string | null;
+    isActive: boolean;
+    parentRecurringId: string | null;
     createdAt: string;
     updatedAt: string;
+    account: {
+        id: string;
+        name: string;
+        type: string;
+    };
+    category: {
+        id: string;
+        name: string;
+        icon: string;
+    } | null;
 }
 
 export interface CreateTransactionResponse {
@@ -61,3 +72,58 @@ export interface DeleteTransactionResponse {
     message: string;
 }
 
+// Query parameters for getTransactions
+export interface GetTransactionsQueryParams {
+    page?: number;
+    limit?: number;
+    type?: TransactionType;
+    categoryId?: string;
+    accountId?: string;
+    isRecurring?: string;
+}
+
+// Extended response with pagination
+export interface GetTransactionsApiResponse extends GetTransactionsResponse {
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
+
+// Recurring transaction template (the rule/schedule)
+export interface RecurringTransactionTemplate {
+    id: string;
+    userId: string;
+    accountId: string;
+    categoryId: string | null;
+    amount: number;
+    type: TransactionType;
+    description: string | null;
+    isRecurring: boolean;
+    recurringInterval: RecurringInterval | null;
+    nextExecutionDate: string | null;
+    isActive: boolean;
+    parentRecurringId: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface UpdateRecurringPayload {
+    isActive?: boolean;
+    recurringInterval?: RecurringInterval;
+    nextExecutionDate?: string;
+}
+
+export interface ToggleRecurringResponse {
+    success: boolean;
+    message: string;
+    data: RecurringTransactionTemplate;
+}
+
+export interface UpdateRecurringResponse {
+    success: boolean;
+    message: string;
+    data: RecurringTransactionTemplate;
+}

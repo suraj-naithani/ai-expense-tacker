@@ -390,11 +390,10 @@ const Page = () => {
                           {transaction.description}
                         </p>
                         <p
-                          className={`text-sm font-medium ${
-                            transaction.type === "income"
-                              ? "text-[#4ade80]"
-                              : "text-[#f87171]"
-                          }`}
+                          className={`text-sm font-medium ${transaction.type === "income"
+                            ? "text-[#4ade80]"
+                            : "text-[#f87171]"
+                            }`}
                         >
                           {transaction.type === "income" ? "+" : ""}₹
                           {Math.abs(transaction.amount).toFixed(2)}

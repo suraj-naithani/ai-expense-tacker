@@ -17,19 +17,11 @@ export async function processRecurringTransactions() {
     for (const template of templates) {
         let nextExecution = template.nextExecutionDate ? new Date(template.nextExecutionDate) : now;
 
-        // Generate all missed occurrences up to now (or endDate)
+        // Generate all missed occurrences up to now
         while (nextExecution <= now) {
-            if (template.endDate && nextExecution > template.endDate) {
-                // Mark inactive when end date is passed
-                await prisma.transaction.update({
-                    where: { id: template.id },
-                    data: { isActive: false },
-                });
-                break;
-            }
 
             // Create occurrence for this execution time
-            await createOccurrenceFromTemplate(template, nextExecution);
+            await createOccurrenceFromTemplate(template);
 
             if (!template.recurringInterval) break;
 

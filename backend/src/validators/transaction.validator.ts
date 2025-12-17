@@ -18,11 +18,6 @@ const description = z
     .max(500, "Description must be 500 characters or less")
     .optional();
 
-const date = z
-    .string()
-    .datetime()
-    .optional();
-
 const isRecurring = z.boolean().optional();
 
 const recurringInterval = z
@@ -36,7 +31,6 @@ export const createTransactionSchema = z
         amount,
         type,
         description,
-        date,
         isRecurring,
         recurringInterval,
     })
@@ -58,7 +52,7 @@ export const updateRecurringSchema = z
     .object({
         isActive: z.boolean().optional(),
         recurringInterval,
-        nextExecutionDate: date,
+        nextExecutionDate: z.string().datetime().optional(),
     })
     .refine(
         (data) => !!data.isActive || !!data.recurringInterval || !!data.nextExecutionDate,

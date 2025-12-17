@@ -8,10 +8,6 @@ export interface CreateTransactionRequest {
     amount: number;
     type: TransactionType;
     description?: string;
-    /**
-     * ISO string; if omitted, server uses current UTC time.
-     */
-    date?: string;
     isRecurring?: boolean;
     recurringInterval?: RecurringInterval;
 }
@@ -19,9 +15,8 @@ export interface CreateTransactionRequest {
 export interface TransactionFilters {
     page?: string;
     limit?: string;
-    startDate?: string;
-    endDate?: string;
     type?: TransactionType;
     categoryId?: string;
     accountId?: string;
+    isRecurring?: string;
 }
