@@ -389,6 +389,7 @@ export default function Page() {
                     <TableHead className="hidden md:table-cell">
                       Account
                     </TableHead>
+                    <TableHead className="hidden sm:table-cell">Frequency</TableHead>
                     <TableHead className="hidden sm:table-cell">Next Date</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -397,7 +398,7 @@ export default function Page() {
                 <TableBody>
                   {recurringTransactions.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6">
+                      <TableCell colSpan={7} className="text-center py-6">
                         No recurring transactions found.
                       </TableCell>
                     </TableRow>
@@ -425,6 +426,13 @@ export default function Page() {
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
                           {transaction.account.name}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-muted-foreground">
+                          <Badge variant="outline" className="text-xs">
+                            {transaction.recurringInterval ?
+                              transaction.recurringInterval.charAt(0).toUpperCase() + transaction.recurringInterval.slice(1).toLowerCase()
+                              : "Once"}
+                          </Badge>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell text-muted-foreground">
                           {transaction.nextExecutionDate ? new Date(transaction.nextExecutionDate).toLocaleDateString() : "Not set"}
