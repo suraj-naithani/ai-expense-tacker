@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
+import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +51,7 @@ export default function Page() {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
     [],
   );
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
 
   const defaultAccountId = useDefaultAccount();
 
@@ -137,7 +137,7 @@ export default function Page() {
             <Button
               size="sm"
               className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-              onClick={() => setIsAddExpenseOpen(true)}
+              onClick={() => setIsAddTransactionOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Transaction
@@ -487,9 +487,9 @@ export default function Page() {
       </div>
 
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
+      <AddTransactionDialog
+        open={isAddTransactionOpen}
+        onOpenChange={setIsAddTransactionOpen}
       />
     </>
   );

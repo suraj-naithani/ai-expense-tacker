@@ -40,7 +40,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
+import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
 import { QuickAddExpenseDialog } from "@/components/dialog/QuickAddExpenseDialog";
 
 const spendingData = [
@@ -135,7 +135,7 @@ const recentTransactions = [
 
 const Page = () => {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
 
   return (
     <main className="flex-1 overflow-auto">
@@ -150,7 +150,7 @@ const Page = () => {
           <Button
             size="sm"
             className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-            onClick={() => setIsAddExpenseOpen(true)}
+            onClick={() => setIsAddTransactionOpen(true)}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Transaction
@@ -264,7 +264,7 @@ const Page = () => {
               <Button
                 size="sm"
                 className="bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-pointer"
-                onClick={() => setIsAddExpenseOpen(true)}
+                onClick={() => setIsAddTransactionOpen(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Custom
@@ -484,9 +484,9 @@ const Page = () => {
         </div>
       </div>
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
+      <AddTransactionDialog
+        open={isAddTransactionOpen}
+        onOpenChange={setIsAddTransactionOpen}
       />
       <QuickAddExpenseDialog
         open={isQuickAddOpen}

@@ -34,7 +34,7 @@ import type {
   TransactionType,
 } from "@/types/transaction";
 
-interface AddExpenseModalProps {
+interface AddTransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -48,7 +48,7 @@ const initialFormState: TransactionFormState = {
   recurringInterval: "",
 };
 
-export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
+export function AddTransactionDialog({ open, onOpenChange }: AddTransactionDialogProps) {
   const [formState, setFormState] = useState<TransactionFormState>(initialFormState);
   const defaultAccountId = useDefaultAccount();
   const [createTransaction, { isLoading }] = useCreateTransactionMutation();

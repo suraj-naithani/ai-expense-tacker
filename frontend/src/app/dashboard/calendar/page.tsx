@@ -3,7 +3,7 @@
 import { ChevronLeft, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
+import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -135,7 +135,7 @@ const upcomingBills = [
 
 export default function Page() {
   const [currentDate, setCurrentDate] = useState(new Date(2024, 0, 15)); // January 15, 2024
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
 
   const getDaysInMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -193,11 +193,10 @@ export default function Page() {
       days.push(
         <div
           key={day}
-          className={`p-2 min-h-[100px] border border-[var(--border)] rounded-lg ${
-            isToday
+          className={`p-2 min-h-[100px] border border-[var(--border)] rounded-lg ${isToday
               ? "bg-[#6366f1]/10 border-[#6366f1]/30"
               : "hover:bg-[var(--card-hover)]"
-          } transition-colors cursor-pointer`}
+            } transition-colors cursor-pointer`}
         >
           <div className="flex justify-between items-start mb-2">
             <span
@@ -220,11 +219,10 @@ export default function Page() {
               {transactions.slice(0, 2).map((transaction) => (
                 <div
                   key={transaction.id}
-                  className={`text-xs p-1 rounded truncate ${
-                    transaction.type === "income"
-                      ? "bg-[#4ade80]/10 text-[#4ade80]"
-                      : "bg-[#f87171]/10 text-[#f87171]"
-                  }`}
+                  className={`text-xs p-1 rounded truncate ${transaction.type === "income"
+                    ? "bg-[#4ade80]/10 text-[#4ade80]"
+                    : "bg-[#f87171]/10 text-[#f87171]"
+                    }`}
                 >
                   {transaction.description}
                 </div>
@@ -264,7 +262,7 @@ export default function Page() {
             <Button
               size="sm"
               className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-              onClick={() => setIsAddExpenseOpen(true)}
+              onClick={() => setIsAddTransactionOpen(true)}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Transaction
@@ -436,9 +434,9 @@ export default function Page() {
         </div>
       </div>
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
+      <AddTransactionDialog
+        open={isAddTransactionOpen}
+        onOpenChange={setIsAddTransactionOpen}
       />
     </>
   );
