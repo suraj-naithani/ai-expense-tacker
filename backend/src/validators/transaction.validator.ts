@@ -61,6 +61,24 @@ export const updateRecurringSchema = z
         },
     );
 
+export const updateTransactionSchema = z
+    .object({
+        accountId: z.string().optional(),
+        categoryId: z.string().optional(),
+        amount: z.number().optional(),
+        type: z.enum(["EXPENSE", "INCOME"] as const).optional(),
+        description: z.string().optional(),
+        isRecurring: z.boolean().optional(),
+        recurringInterval: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const).optional(),
+    })
+    .partial()
+    .refine(
+        (data) => Object.keys(data).length > 0,
+        {
+            message: "At least one field must be provided",
+        },
+    );
+
 export const toggleRecurringParamSchema = z.object({
     id: z.string(),
 });

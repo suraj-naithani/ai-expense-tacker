@@ -9,6 +9,8 @@ import {
     ToggleRecurringResponse,
     UpdateRecurringPayload,
     UpdateRecurringResponse,
+    UpdateTransactionPayload,
+    UpdateTransactionResponse,
 } from "@/types/transaction";
 
 export const transactionApi = createApi({
@@ -56,6 +58,15 @@ export const transactionApi = createApi({
             invalidatesTags: ["RecurringTransaction"],
         }),
 
+        updateTransaction: builder.mutation<UpdateTransactionResponse, { id: string; body: UpdateTransactionPayload }>({
+            query: ({ id, body }) => ({
+                url: `update-transaction/${id}`,
+                method: "PATCH",
+                body,
+            }),
+            invalidatesTags: ["Transaction"],
+        }),
+
         // Delete a transaction (template or occurrence)
         deleteTransaction: builder.mutation<DeleteTransactionResponse, string>({
             query: (id) => ({
@@ -70,6 +81,7 @@ export const transactionApi = createApi({
 export const {
     useGetTransactionsQuery,
     useCreateTransactionMutation,
+    useUpdateTransactionMutation,
     useUpdateRecurringTransactionMutation,
     useToggleRecurringTransactionMutation,
     useDeleteTransactionMutation,

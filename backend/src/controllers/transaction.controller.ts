@@ -147,6 +147,45 @@ export const getTransactions = async (req: Request, res: Response) => {
     }
 };
 
+
+export const updateTransaction = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id as string;
+    const id = req.params.id;
+    const body = req.body as CreateTransactionRequest;
+
+    try {
+        const existing = await prisma.transaction.findFirst({
+            where: { id, userId },
+        });
+
+        if (!existing) {
+            return res.status(404).json({ success: false, message: "Transaction not found" });
+        }
+
+        const updated = await prisma.transaction.update({
+            where: { id: existing.id },
+            data: {
+                type: body.type,
+                amount: body.amount,
+                description: body.description,
+                categoryId: body.categoryId,
+                accountId: body.accountId,
+                isRecurring: body.isRecurring,
+                recurringInterval: body.recurringInterval,
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Transaction updated successfully",
+            data: updated,
+        });
+    } catch (error) {
+        console.error("Update transaction error:", error);
+        return res.status(500).json({ success: false, message: "Failed to update transaction" });
+    }
+};
+
 export const updateRecurringTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
     const id = req.params.id;

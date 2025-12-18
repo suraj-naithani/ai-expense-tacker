@@ -67,6 +67,12 @@ export interface UpdateTransactionPayload {
     recurringInterval?: RecurringInterval;
 }
 
+export interface UpdateTransactionResponse {
+    success: boolean;
+    message: string;
+    data: Transaction;
+}
+
 export interface DeleteTransactionResponse {
     success: boolean;
     message: string;
