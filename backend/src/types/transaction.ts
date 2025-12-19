@@ -11,6 +11,14 @@ export interface CreateTransactionRequest {
     isRecurring?: boolean;
     recurringInterval?: RecurringInterval;
 }
+export interface UpdateTransactionRequest {
+    type?: TransactionType;
+    categoryId?: string;
+    amount?: number;
+    description?: string;
+    isActive?: boolean;
+    recurringInterval?: RecurringInterval;
+}
 
 export interface TransactionFilters {
     page?: string;

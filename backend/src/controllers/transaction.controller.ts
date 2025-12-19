@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/connection.js";
-import { CreateTransactionRequest, TransactionFilters } from "../types/transaction.js";
+import { CreateTransactionRequest, TransactionFilters, UpdateTransactionRequest } from "../types/transaction.js";
 import { calculateNextExecutionDate } from "../utils/dateCalculator.js";
 import { createOneTimeTransaction, createRecurringTemplateWithFirstOccurrence } from "../utils/transactionHelper.js";
 
@@ -147,11 +147,10 @@ export const getTransactions = async (req: Request, res: Response) => {
     }
 };
 
-
 export const updateTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
     const id = req.params.id;
-    const body = req.body as CreateTransactionRequest;
+    const body = req.body as UpdateTransactionRequest;
 
     try {
         const existing = await prisma.transaction.findFirst({
@@ -162,6 +161,15 @@ export const updateTransaction = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: "Transaction not found" });
         }
 
+        let nextExecutionDate: Date | undefined;
+
+        if (existing.isRecurring && body.recurringInterval && body.recurringInterval) {
+            nextExecutionDate = calculateNextExecutionDate(
+                new Date(),
+                body.recurringInterval as any,
+            );
+        }
+
         const updated = await prisma.transaction.update({
             where: { id: existing.id },
             data: {
@@ -169,9 +177,9 @@ export const updateTransaction = async (req: Request, res: Response) => {
                 amount: body.amount,
                 description: body.description,
                 categoryId: body.categoryId,
-                accountId: body.accountId,
-                isRecurring: body.isRecurring,
+                isActive: body.isActive,
                 recurringInterval: body.recurringInterval,
+                ...(nextExecutionDate && { nextExecutionDate }),
             },
         });
 
@@ -186,52 +194,6 @@ export const updateTransaction = async (req: Request, res: Response) => {
     }
 };
 
-export const updateRecurringTransaction = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id as string;
-    const id = req.params.id;
-    const { isActive, recurringInterval, nextExecutionDate } = req.body as {
-        isActive?: boolean;
-        recurringInterval?: string;
-        nextExecutionDate?: string;
-    };
-
-    try {
-        const existing = await prisma.transaction.findFirst({
-            where: { id, userId, isRecurring: true },
-        });
-
-        if (!existing) {
-            return res.status(404).json({ success: false, message: "Recurring transaction not found" });
-        }
-
-        const data: any = {};
-
-        if (typeof isActive === "boolean") data.isActive = isActive;
-        if (recurringInterval) data.recurringInterval = recurringInterval;
-        if (nextExecutionDate) {
-            data.nextExecutionDate = new Date(nextExecutionDate);
-        } else if (recurringInterval && existing.nextExecutionDate) {
-            data.nextExecutionDate = calculateNextExecutionDate(
-                new Date(existing.nextExecutionDate),
-                recurringInterval as any,
-            );
-        }
-
-        const updated = await prisma.transaction.update({
-            where: { id: existing.id },
-            data,
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: "Recurring transaction updated successfully",
-            data: updated,
-        });
-    } catch (error) {
-        console.error("Update recurring transaction error:", error);
-        return res.status(500).json({ success: false, message: "Failed to update recurring transaction" });
-    }
-};
 
 export const deleteTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
