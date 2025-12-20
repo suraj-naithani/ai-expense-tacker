@@ -2,6 +2,35 @@ export type TransactionType = "EXPENSE" | "INCOME";
 
 export type RecurringInterval = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
+export interface CreateTransactionFormValues {
+    type: TransactionType;
+    amount: number;
+    categoryId: string;
+    description?: string;
+    isRecurring?: boolean;
+    recurringInterval?: RecurringInterval;
+}
+
+export interface UpdateTransactionFormValues {
+    type: TransactionType;
+    amount: number;
+    categoryId: string;
+    description?: string;
+    isRecurring?: boolean;
+    recurringInterval?: RecurringInterval;
+    isActive?: boolean;
+}
+
+// Keep for backward compatibility
+export interface TransactionFormValues {
+    type: TransactionType;
+    amount: number;
+    categoryId: string;
+    description?: string;
+    isRecurring?: boolean;
+    recurringInterval?: RecurringInterval;
+}
+
 export interface TransactionFormState {
     type: TransactionType;
     amount: string;
@@ -60,10 +89,10 @@ export interface GetTransactionsResponse {
 
 export interface UpdateTransactionPayload {
     type?: TransactionType;
+    categoryId?: string;
     amount?: number;
-    category?: string;
     description?: string;
-    isRecurring?: boolean;
+    isActive?: boolean;
     recurringInterval?: RecurringInterval;
 }
 

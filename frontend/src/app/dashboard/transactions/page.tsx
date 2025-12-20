@@ -14,9 +14,11 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
 
 import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
+import { UpdateTransactionDialog } from "@/components/dialog/UpdateTransactionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,8 +44,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
-import { useGetTransactionsQuery } from "@/redux/api/transactionApi";
-import type { Transaction } from "@/types/transaction";
+import {
+  useGetTransactionsQuery,
+  useCreateTransactionMutation,
+  useUpdateTransactionMutation,
+} from "@/redux/api/transactionApi";
+import type { Transaction, CreateTransactionFormValues, UpdateTransactionFormValues } from "@/types/transaction";
 
 export default function Page() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -52,7 +58,9 @@ export default function Page() {
     [],
   );
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
-
+  const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
+  const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
+  console.log(updatingTransaction);
   const defaultAccountId = useDefaultAccount();
 
   const {
@@ -62,6 +70,7 @@ export default function Page() {
     defaultAccountId ? { accountId: defaultAccountId, isRecurring: "false" } : { isRecurring: "false" },
     {
       skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
     },
   );
 
@@ -71,20 +80,24 @@ export default function Page() {
     defaultAccountId ? { accountId: defaultAccountId, isRecurring: "true" } : { isRecurring: "true" },
     {
       skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
     },
   );
 
-  const apiTransactions: Transaction[] = transactionsResponse?.data ?? [];
+  const [createTransaction] = useCreateTransactionMutation();
+  const [updateTransaction] = useUpdateTransactionMutation();
+
+  const transactions: Transaction[] = transactionsResponse?.data ?? [];
   const recurringTransactions: Transaction[] = recurringTransactionsResponse?.data ?? [];
 
-  const filteredTransactions = apiTransactions.filter((transaction) => {
+  const filteredTransactions = transactions.filter((transaction) => {
     const description = transaction.description?.toLowerCase() || "";
     return description.includes(searchQuery.toLowerCase());
   });
 
   const toggleTransaction = (id: string) => {
     setSelectedTransactions((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id],
     );
   };
 
@@ -96,14 +109,88 @@ export default function Page() {
     );
   };
 
+  const handleCreate = useCallback(async (values: CreateTransactionFormValues) => {
+    if (!defaultAccountId) return;
+
+    const loadingToast = toast.loading("Creating transaction...");
+
+    try {
+      const payload = {
+        accountId: defaultAccountId,
+        categoryId: values.categoryId,
+        amount: values.amount,
+        type: values.type,
+        description: values.description || undefined,
+        isRecurring: values.isRecurring || undefined,
+        recurringInterval: values.isRecurring ? values.recurringInterval : undefined,
+      };
+
+      await createTransaction(payload).unwrap();
+      toast.success("Transaction created successfully");
+      setIsAddTransactionOpen(false);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to create transaction");
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [createTransaction, defaultAccountId]);
+
+  const handleUpdate = useCallback(async (values: UpdateTransactionFormValues) => {
+    if (!updatingTransaction) return;
+
+    const loadingToast = toast.loading("Updating transaction...");
+
+    try {
+      const payload = {
+        categoryId: values.categoryId,
+        amount: values.amount,
+        type: values.type,
+        description: values.description || undefined,
+        isActive: updatingTransaction.isRecurring ? values.isActive : undefined,
+        recurringInterval: values.isRecurring ? values.recurringInterval : undefined,
+      };
+
+      await updateTransaction({ id: updatingTransaction.id, body: payload }).unwrap();
+      toast.success("Transaction updated successfully");
+      setIsUpdateTransactionOpen(false);
+      setUpdatingTransaction(null);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction");
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [updateTransaction, updatingTransaction]);
+
+  const handleEditTransaction = useCallback((transaction: Transaction) => {
+    setUpdatingTransaction(transaction);
+    setIsUpdateTransactionOpen(true);
+  }, []);
+
+  const handleToggleActiveStatus = useCallback(async (transaction: Transaction) => {
+    const loadingToast = toast.loading(`${transaction.isActive ? "Deactivating" : "Activating"} transaction...`);
+
+    try {
+      const payload = {
+        isActive: !transaction.isActive,
+      };
+
+      await updateTransaction({ id: transaction.id, body: payload }).unwrap();
+      toast.success(`Transaction ${transaction.isActive ? "deactivated" : "activated"} successfully`);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction status");
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [updateTransaction]);
+
   // Calculate totals
   const totalIncome = filteredTransactions
     .filter((t) => t.type === "INCOME")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum: number, t) => sum + t.amount, 0);
 
   const totalExpenses = filteredTransactions
     .filter((t) => t.type === "EXPENSE")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum: number, t) => sum + t.amount, 0);
 
   const totalBalance = totalIncome - totalExpenses;
 
@@ -258,7 +345,7 @@ export default function Page() {
                           selectedTransactions.length ===
                           filteredTransactions.length
                         }
-                        onCheckedChange={toggleAll}
+                        onCheckedChange={() => toggleAll()}
                       />
                     </TableHead>
                     <TableHead>Description</TableHead>
@@ -348,7 +435,7 @@ export default function Page() {
                               align="end"
                               className="bg-[var(--card)] border-[var(--border)]"
                             >
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditTransaction(transaction)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
@@ -461,11 +548,11 @@ export default function Page() {
                               align="end"
                               className="bg-[var(--card)] border-[var(--border)]"
                             >
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditTransaction(transaction)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleActiveStatus(transaction)}>
                                 <Power className="mr-2 h-4 w-4" />
                                 {transaction.isActive ? "Deactivate" : "Activate"}
                               </DropdownMenuItem>
@@ -490,6 +577,13 @@ export default function Page() {
       <AddTransactionDialog
         open={isAddTransactionOpen}
         onOpenChange={setIsAddTransactionOpen}
+        onSave={handleCreate}
+      />
+      <UpdateTransactionDialog
+        open={isUpdateTransactionOpen}
+        onOpenChange={setIsUpdateTransactionOpen}
+        transaction={updatingTransaction}
+        onSave={handleUpdate}
       />
     </>
   );

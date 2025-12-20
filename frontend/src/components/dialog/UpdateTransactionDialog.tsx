@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,16 +25,11 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 import type {
-  TransactionFormValues,
+  Transaction,
+  UpdateTransactionFormValues,
   TransactionType,
   RecurringInterval,
 } from "@/types/transaction";
-
-interface AddTransactionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave: (values: TransactionFormValues) => void;
-}
 
 interface FormState {
   type: TransactionType;
@@ -43,21 +38,49 @@ interface FormState {
   description: string;
   isRecurring: boolean;
   recurringInterval: string;
+  isActive: boolean;
 }
 
-const initialState: FormState = {
-  type: "EXPENSE",
-  amount: "",
-  categoryId: "",
-  description: "",
-  isRecurring: false,
-  recurringInterval: "",
-};
+interface UpdateTransactionDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  transaction: Transaction | null;
+  onSave: (values: UpdateTransactionFormValues) => void;
+}
 
-export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransactionDialogProps) {
+export function UpdateTransactionDialog({
+  open,
+  onOpenChange,
+  transaction,
+  onSave,
+}: UpdateTransactionDialogProps) {
+  const initialState: FormState = {
+    type: "EXPENSE",
+    amount: "",
+    categoryId: "",
+    description: "",
+    isRecurring: false,
+    recurringInterval: "",
+    isActive: true,
+  };
+
   const [form, setForm] = useState<FormState>(initialState);
   const { data: categoriesRes, isLoading: loadingCats } = useGetCategoriesQuery();
   const categories = categoriesRes?.data || [];
+
+  useEffect(() => {
+    if (open && transaction) {
+      setForm({
+        type: transaction.type,
+        amount: transaction.amount.toString(),
+        categoryId: transaction.category?.id || "",
+        description: transaction.description || "",
+        isRecurring: transaction.isRecurring,
+        recurringInterval: transaction.recurringInterval || "",
+        isActive: transaction.isActive,
+      });
+    }
+  }, [open, transaction]);
 
   const resetAndClose = () => {
     setForm(initialState);
@@ -76,21 +99,25 @@ export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransact
       description: form.description || undefined,
       isRecurring: form.isRecurring || undefined,
       recurringInterval: form.isRecurring ? form.recurringInterval as RecurringInterval : undefined,
+      isActive: transaction?.isRecurring ? form.isActive : undefined,
     });
     resetAndClose();
   };
+
+  if (!transaction) return null;
+
 
   return (
     <>
       {open && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-100" />
       )}
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={resetAndClose}>
         <DialogContent className="sm:max-w-[425px] bg-[var(--background)] border-[var(--border)] z-110">
           <DialogHeader>
-            <DialogTitle className="text-xl">Add Transaction</DialogTitle>
+            <DialogTitle className="text-xl">Update Transaction</DialogTitle>
             <DialogDescription>
-              Enter the details of your transaction below.
+              Update the details of your transaction below.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
@@ -182,49 +209,54 @@ export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransact
               />
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between space-x-2">
-                <div className="space-y-0.5">
-                  <Label htmlFor="recurring">Recurring Transaction</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Set up a recurring schedule for this transaction
-                  </p>
+            {/* Only show recurring toggle if this is a recurring transaction */}
+            {transaction?.isRecurring && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between space-x-2">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="recurring">Recurring Transaction</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Set up a recurring schedule for this transaction
+                    </p>
+                  </div>
+                  <Switch
+                    id="recurring"
+                    checked={form.isRecurring}
+                    onCheckedChange={(checked) => setForm(prev => ({ ...prev, isRecurring: checked }))}
+                  />
                 </div>
-                <Switch
-                  id="recurring"
-                  checked={form.isRecurring}
-                  onCheckedChange={(checked) => setForm(prev => ({ ...prev, isRecurring: checked }))}
-                />
-              </div>
 
-              {form.isRecurring && (
-                <div className="space-y-2">
-                  <Label htmlFor="recurringInterval">Recurring Interval *</Label>
-                  <Select
-                    value={form.recurringInterval}
-                    onValueChange={(value) => setForm(prev => ({ ...prev, recurringInterval: value }))}
-                  >
-                    <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
-                      <SelectValue placeholder="Select interval" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                      <SelectItem value="DAILY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Daily
-                      </SelectItem>
-                      <SelectItem value="WEEKLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Weekly
-                      </SelectItem>
-                      <SelectItem value="MONTHLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Monthly
-                      </SelectItem>
-                      <SelectItem value="YEARLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Yearly
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
+                {form.isRecurring && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="recurringInterval">Recurring Interval *</Label>
+                      <Select
+                        value={form.recurringInterval}
+                        onValueChange={(value) => setForm(prev => ({ ...prev, recurringInterval: value }))}
+                      >
+                        <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
+                          <SelectValue placeholder="Select interval" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
+                          <SelectItem value="DAILY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                            Daily
+                          </SelectItem>
+                          <SelectItem value="WEEKLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                            Weekly
+                          </SelectItem>
+                          <SelectItem value="MONTHLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                            Monthly
+                          </SelectItem>
+                          <SelectItem value="YEARLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
+                            Yearly
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             <DialogFooter>
               <Button
@@ -239,7 +271,7 @@ export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransact
                 type="submit"
                 className="bg-[#6366f1] hover:bg-[#4f46e5] cursor-pointer"
               >
-                Create
+                Save changes
               </Button>
             </DialogFooter>
           </form>
