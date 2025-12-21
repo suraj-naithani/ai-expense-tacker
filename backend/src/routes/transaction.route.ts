@@ -25,7 +25,6 @@ app.get("/get-transactions", getTransactions);
 
 app.patch("/update-transaction/:id", validate(updateTransactionSchema), updateTransaction);
 
-
 app.patch("/toggle-recurring/:id", validateParams(toggleRecurringParamSchema), toggleRecurring);
 
 app.delete("/delete-transaction/:id", validateParams(deleteTransactionParamSchema), deleteTransaction);

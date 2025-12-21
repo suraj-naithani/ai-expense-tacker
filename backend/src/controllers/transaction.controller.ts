@@ -194,6 +194,38 @@ export const updateTransaction = async (req: Request, res: Response) => {
     }
 };
 
+export const toggleRecurring = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id as string;
+    const id = req.params.id;
+
+    try {
+        const existing = await prisma.transaction.findFirst({
+            where: { id, userId, isRecurring: true },
+        });
+
+        if (!existing) {
+            return res.status(404).json({ success: false, message: "Recurring transaction not found" });
+        }
+
+        const newIsActive = !existing.isActive;
+
+        const updated = await prisma.transaction.update({
+            where: { id: existing.id },
+            data: {
+                isActive: newIsActive,
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Recurring transaction toggled successfully",
+            data: updated,
+        });
+    } catch (error) {
+        console.error("Toggle recurring transaction error:", error);
+        return res.status(500).json({ success: false, message: "Failed to toggle recurring transaction" });
+    }
+};
 
 export const deleteTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
@@ -214,50 +246,5 @@ export const deleteTransaction = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Delete transaction error:", error);
         return res.status(500).json({ success: false, message: "Failed to delete transaction" });
-    }
-};
-
-export const toggleRecurring = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id as string;
-    const id = req.params.id;
-
-    try {
-        const existing = await prisma.transaction.findFirst({
-            where: { id, userId, isRecurring: true },
-        });
-
-        if (!existing) {
-            return res.status(404).json({ success: false, message: "Recurring transaction not found" });
-        }
-
-        const newIsActive = !existing.isActive;
-
-        let nextExecutionDate = existing.nextExecutionDate
-            ? new Date(existing.nextExecutionDate)
-            : new Date();
-
-        if (newIsActive) {
-            const now = new Date();
-            if (nextExecutionDate <= now && existing.recurringInterval) {
-                nextExecutionDate = calculateNextExecutionDate(now, existing.recurringInterval as any);
-            }
-        }
-
-        const updated = await prisma.transaction.update({
-            where: { id: existing.id },
-            data: {
-                isActive: newIsActive,
-                nextExecutionDate,
-            },
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: "Recurring transaction toggled successfully",
-            data: updated,
-        });
-    } catch (error) {
-        console.error("Toggle recurring transaction error:", error);
-        return res.status(500).json({ success: false, message: "Failed to toggle recurring transaction" });
     }
 };
