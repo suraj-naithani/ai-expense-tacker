@@ -18,6 +18,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
+import { DeleteTransactionDialog } from "@/components/dialog/DeleteTransactionDialog";
 import { UpdateTransactionDialog } from "@/components/dialog/UpdateTransactionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 import {
   useGetTransactionsQuery,
   useCreateTransactionMutation,
+  useDeleteTransactionMutation,
   useUpdateTransactionMutation,
 } from "@/redux/api/transactionApi";
 import type { Transaction, CreateTransactionFormValues, UpdateTransactionFormValues } from "@/types/transaction";
@@ -59,7 +61,9 @@ export default function Page() {
   );
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   console.log(updatingTransaction);
   const defaultAccountId = useDefaultAccount();
 
@@ -85,6 +89,7 @@ export default function Page() {
   );
 
   const [createTransaction] = useCreateTransactionMutation();
+  const [deleteTransaction] = useDeleteTransactionMutation();
   const [updateTransaction] = useUpdateTransactionMutation();
 
   const transactions: Transaction[] = transactionsResponse?.data ?? [];
@@ -182,6 +187,33 @@ export default function Page() {
       toast.dismiss(loadingToast);
     }
   }, [updateTransaction]);
+
+  const handleOpenDeleteDialog = useCallback((transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!transactionToDelete) return;
+
+    const loadingToast = toast.loading("Deleting transaction...");
+
+    try {
+      await deleteTransaction(transactionToDelete.id).unwrap();
+      toast.success("Transaction deleted successfully", {
+        description: "This transaction has been removed from your list.",
+      });
+      setIsDeleteDialogOpen(false);
+      setTransactionToDelete(null);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete transaction. Please try again.";
+      toast.error(errorMessage);
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [transactionToDelete, deleteTransaction]);
 
   // Calculate totals
   const totalIncome = filteredTransactions
@@ -439,7 +471,7 @@ export default function Page() {
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-[#f87171]">
+                              <DropdownMenuItem className="text-[#f87171]" onClick={() => handleOpenDeleteDialog(transaction)}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -556,7 +588,7 @@ export default function Page() {
                                 <Power className="mr-2 h-4 w-4" />
                                 {transaction.isActive ? "Deactivate" : "Activate"}
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="text-[#f87171]">
+                              <DropdownMenuItem className="text-[#f87171]" onClick={() => handleOpenDeleteDialog(transaction)}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -584,6 +616,14 @@ export default function Page() {
         onOpenChange={setIsUpdateTransactionOpen}
         transaction={updatingTransaction}
         onSave={handleUpdate}
+      />
+      <DeleteTransactionDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        transactionDescription={transactionToDelete?.description || undefined}
+        transactionAmount={transactionToDelete?.amount}
+        transactionType={transactionToDelete?.type}
+        onConfirm={handleConfirmDelete}
       />
     </>
   );
