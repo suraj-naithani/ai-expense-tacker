@@ -151,7 +151,7 @@ export const updateTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
     const id = req.params.id;
     const body = req.body as UpdateTransactionRequest;
-
+    console.log(body);
     try {
         const existing = await prisma.transaction.findFirst({
             where: { id, userId },
@@ -163,10 +163,10 @@ export const updateTransaction = async (req: Request, res: Response) => {
 
         let nextExecutionDate: Date | undefined;
 
-        if (existing.isRecurring && body.recurringInterval && body.recurringInterval) {
+        if (existing.isRecurring && (body.recurringInterval || (body.isActive === true && existing.isActive === false))) {
             nextExecutionDate = calculateNextExecutionDate(
                 new Date(),
-                body.recurringInterval as any,
+                body.recurringInterval || existing.recurringInterval as any,
             );
         }
 

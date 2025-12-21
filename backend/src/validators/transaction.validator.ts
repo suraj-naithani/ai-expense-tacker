@@ -68,7 +68,7 @@ export const updateTransactionSchema = z
         amount: z.number().optional(),
         type: z.enum(["EXPENSE", "INCOME"] as const).optional(),
         description: z.string().optional(),
-        isRecurring: z.boolean().optional(),
+        isActive: z.boolean().optional(),
         recurringInterval: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"] as const).optional(),
     })
     .partial()

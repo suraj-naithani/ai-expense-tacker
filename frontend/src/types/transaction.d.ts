@@ -16,7 +16,6 @@ export interface UpdateTransactionFormValues {
     amount: number;
     categoryId: string;
     description?: string;
-    isRecurring?: boolean;
     recurringInterval?: RecurringInterval;
     isActive?: boolean;
 }

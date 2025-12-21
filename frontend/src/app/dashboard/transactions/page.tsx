@@ -146,8 +146,8 @@ export default function Page() {
         amount: values.amount,
         type: values.type,
         description: values.description || undefined,
-        isActive: updatingTransaction.isRecurring ? values.isActive : undefined,
-        recurringInterval: values.isRecurring ? values.recurringInterval : undefined,
+        isActive: values.isActive,
+        recurringInterval: values.recurringInterval,
       };
 
       await updateTransaction({ id: updatingTransaction.id, body: payload }).unwrap();

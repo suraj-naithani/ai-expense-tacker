@@ -36,7 +36,6 @@ interface FormState {
   amount: string;
   categoryId: string;
   description: string;
-  isRecurring: boolean;
   recurringInterval: string;
   isActive: boolean;
 }
@@ -59,7 +58,6 @@ export function UpdateTransactionDialog({
     amount: "",
     categoryId: "",
     description: "",
-    isRecurring: false,
     recurringInterval: "",
     isActive: true,
   };
@@ -75,7 +73,6 @@ export function UpdateTransactionDialog({
         amount: transaction.amount.toString(),
         categoryId: transaction.category?.id || "",
         description: transaction.description || "",
-        isRecurring: transaction.isRecurring,
         recurringInterval: transaction.recurringInterval || "",
         isActive: transaction.isActive,
       });
@@ -97,9 +94,8 @@ export function UpdateTransactionDialog({
       amount,
       categoryId: form.categoryId,
       description: form.description || undefined,
-      isRecurring: form.isRecurring || undefined,
-      recurringInterval: form.isRecurring ? form.recurringInterval as RecurringInterval : undefined,
-      isActive: transaction?.isRecurring ? form.isActive : undefined,
+      isActive: form.isActive,
+      recurringInterval: (transaction?.isActive || form.isActive) ? form.recurringInterval as RecurringInterval : undefined,
     });
     resetAndClose();
   };
@@ -209,24 +205,24 @@ export function UpdateTransactionDialog({
               />
             </div>
 
-            {/* Only show recurring toggle if this is a recurring transaction */}
+            {/* Only show recurring settings if this is a recurring transaction */}
             {transaction?.isRecurring && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between space-x-2">
                   <div className="space-y-0.5">
-                    <Label htmlFor="recurring">Recurring Transaction</Label>
+                    <Label htmlFor="active">Enable Recurring Transaction</Label>
                     <p className="text-sm text-muted-foreground">
-                      Set up a recurring schedule for this transaction
+                      Toggle to enable or disable the recurring schedule for this transaction
                     </p>
                   </div>
                   <Switch
-                    id="recurring"
-                    checked={form.isRecurring}
-                    onCheckedChange={(checked) => setForm(prev => ({ ...prev, isRecurring: checked }))}
+                    id="active"
+                    checked={form.isActive}
+                    onCheckedChange={(checked) => setForm(prev => ({ ...prev, isActive: checked }))}
                   />
                 </div>
 
-                {form.isRecurring && (
+                {form.isActive && (
                   <>
                     <div className="space-y-2">
                       <Label htmlFor="recurringInterval">Recurring Interval *</Label>
