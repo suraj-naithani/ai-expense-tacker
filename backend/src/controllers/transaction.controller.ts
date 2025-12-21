@@ -4,7 +4,6 @@ import { CreateTransactionRequest, TransactionFilters, UpdateTransactionRequest 
 import { calculateNextExecutionDate } from "../utils/dateCalculator.js";
 import { createOneTimeTransaction, createRecurringTemplateWithFirstOccurrence } from "../utils/transactionHelper.js";
 
-
 export const createTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
     const body = req.body as CreateTransactionRequest;
@@ -29,7 +28,6 @@ export const createTransaction = async (req: Request, res: Response) => {
                 return res.status(400).json({ success: false, message: "Invalid category" });
             }
         }
-
 
         if (isRecurring && recurringInterval) {
             const { template, occurrence } = await createRecurringTemplateWithFirstOccurrence({
@@ -151,7 +149,7 @@ export const updateTransaction = async (req: Request, res: Response) => {
     const userId = (req as any).user.id as string;
     const id = req.params.id;
     const body = req.body as UpdateTransactionRequest;
-    console.log(body);
+
     try {
         const existing = await prisma.transaction.findFirst({
             where: { id, userId },

@@ -1,6 +1,5 @@
 import { RecurringInterval } from "../types/transaction.js";
 
-// Always operate in UTC to avoid timezone drift.
 export function calculateNextExecutionDate(current: Date, interval: RecurringInterval): Date {
     const next = new Date(current.getTime());
 
