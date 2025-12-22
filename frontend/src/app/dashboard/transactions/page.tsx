@@ -143,10 +143,14 @@ export default function Page() {
       };
 
       await createTransaction(payload).unwrap();
-      toast.success("Transaction created successfully");
+      toast.success("Transaction created successfully", {
+        description: "Your new transaction has been added to your list.",
+      });
       setIsAddTransactionOpen(false);
     } catch (error: unknown) {
-      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to create transaction");
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to create transaction", {
+        description: "Please check your input and try again.",
+      });
     } finally {
       toast.dismiss(loadingToast);
     }
@@ -168,11 +172,15 @@ export default function Page() {
       };
 
       await updateTransaction({ id: updatingTransaction.id, body: payload }).unwrap();
-      toast.success("Transaction updated successfully");
+      toast.success("Transaction updated successfully", {
+        description: "Your transaction changes have been saved.",
+      });
       setIsUpdateTransactionOpen(false);
       setUpdatingTransaction(null);
     } catch (error: unknown) {
-      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction");
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction", {
+        description: "Please check your input and try again.",
+      });
     } finally {
       toast.dismiss(loadingToast);
     }
@@ -187,9 +195,15 @@ export default function Page() {
       };
 
       await updateTransaction({ id: transaction.id, body: payload }).unwrap();
-      toast.success(`Transaction ${transaction.isActive ? "deactivated" : "activated"} successfully`);
+      toast.success(`Transaction ${transaction.isActive ? "deactivated" : "activated"} successfully`, {
+        description: transaction.isActive
+          ? "This recurring transaction will no longer execute automatically."
+          : "This recurring transaction will now execute automatically.",
+      });
     } catch (error: unknown) {
-      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction status");
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction status", {
+        description: "Please try again later.",
+      });
     } finally {
       toast.dismiss(loadingToast);
     }
@@ -211,7 +225,9 @@ export default function Page() {
       const errorMessage =
         (error as { data?: { message?: string } })?.data?.message ||
         "Failed to delete transaction. Please try again.";
-      toast.error(errorMessage);
+      toast.error(errorMessage, {
+        description: "The transaction could not be removed. Please try again.",
+      });
     } finally {
       toast.dismiss(loadingToast);
     }
