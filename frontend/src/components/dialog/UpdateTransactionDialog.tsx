@@ -25,27 +25,12 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 import type {
-  Transaction,
-  UpdateTransactionFormValues,
   TransactionType,
   RecurringInterval,
+  UpdateTransactionDialogProps,
+  UpdateFormState,
 } from "@/types/transaction";
-
-interface FormState {
-  type: TransactionType;
-  amount: string;
-  categoryId: string;
-  description: string;
-  recurringInterval: string;
-  isActive: boolean;
-}
-
-interface UpdateTransactionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  transaction: Transaction | null;
-  onSave: (values: UpdateTransactionFormValues) => void;
-}
+import { updateInitialState, TRANSACTION_TYPES, RECURRING_INTERVALS } from "@/constants/config";
 
 export function UpdateTransactionDialog({
   open,
@@ -53,16 +38,7 @@ export function UpdateTransactionDialog({
   transaction,
   onSave,
 }: UpdateTransactionDialogProps) {
-  const initialState: FormState = {
-    type: "EXPENSE",
-    amount: "",
-    categoryId: "",
-    description: "",
-    recurringInterval: "",
-    isActive: true,
-  };
-
-  const [form, setForm] = useState<FormState>(initialState);
+  const [form, setForm] = useState<UpdateFormState>(updateInitialState);
   const { data: categoriesRes, isLoading: loadingCats } = useGetCategoriesQuery();
   const categories = categoriesRes?.data || [];
 
@@ -80,7 +56,7 @@ export function UpdateTransactionDialog({
   }, [open, transaction]);
 
   const resetAndClose = () => {
-    setForm(initialState);
+    setForm(updateInitialState);
     onOpenChange(false);
   };
 
@@ -102,7 +78,6 @@ export function UpdateTransactionDialog({
 
   if (!transaction) return null;
 
-
   return (
     <>
       {open && (
@@ -122,7 +97,7 @@ export function UpdateTransactionDialog({
                 <Label htmlFor="type">Type *</Label>
                 <Select
                   value={form.type}
-                  onValueChange={(value: TransactionType) =>
+                  onValueChange={(value) =>
                     setForm(prev => ({ ...prev, type: value as TransactionType }))
                   }
                 >
@@ -130,12 +105,15 @@ export function UpdateTransactionDialog({
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                    <SelectItem value="EXPENSE" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                      Expense
-                    </SelectItem>
-                    <SelectItem value="INCOME" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                      Income
-                    </SelectItem>
+                    {TRANSACTION_TYPES.map((type) => (
+                      <SelectItem
+                        key={type.value}
+                        value={type.value}
+                        className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                      >
+                        {type.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -234,18 +212,15 @@ export function UpdateTransactionDialog({
                           <SelectValue placeholder="Select interval" />
                         </SelectTrigger>
                         <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                          <SelectItem value="DAILY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                            Daily
-                          </SelectItem>
-                          <SelectItem value="WEEKLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                            Weekly
-                          </SelectItem>
-                          <SelectItem value="MONTHLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                            Monthly
-                          </SelectItem>
-                          <SelectItem value="YEARLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                            Yearly
-                          </SelectItem>
+                          {RECURRING_INTERVALS.map((interval) => (
+                            <SelectItem
+                              key={interval.value}
+                              value={interval.value}
+                              className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                            >
+                              {interval.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

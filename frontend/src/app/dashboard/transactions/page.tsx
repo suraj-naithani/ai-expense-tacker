@@ -4,17 +4,15 @@ import {
   DollarSign,
   Download,
   Edit,
-  Filter,
   MoreHorizontal,
   Plus,
   Power,
-  Search,
   Target,
   Trash2,
   TrendingDown,
-  TrendingUp,
+  TrendingUp
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
@@ -46,16 +44,19 @@ import {
 } from "@/components/ui/table";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 import {
-  useGetTransactionsQuery,
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
+  useGetTransactionsQuery,
   useUpdateTransactionMutation,
 } from "@/redux/api/transactionApi";
-import type { Transaction, CreateTransactionFormValues, UpdateTransactionFormValues } from "@/types/transaction";
+import type {
+  CreateTransactionFormValues,
+  Transaction,
+  UpdateTransactionFormValues,
+  UpdateTransactionPayload,
+} from "@/types/transaction";
 
 export default function Page() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
     [],
   );
@@ -64,7 +65,7 @@ export default function Page() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  console.log(updatingTransaction);
+
   const defaultAccountId = useDefaultAccount();
 
   const {
@@ -92,13 +93,14 @@ export default function Page() {
   const [deleteTransaction] = useDeleteTransactionMutation();
   const [updateTransaction] = useUpdateTransactionMutation();
 
-  const transactions: Transaction[] = transactionsResponse?.data ?? [];
-  const recurringTransactions: Transaction[] = recurringTransactionsResponse?.data ?? [];
-
-  const filteredTransactions = transactions.filter((transaction) => {
-    const description = transaction.description?.toLowerCase() || "";
-    return description.includes(searchQuery.toLowerCase());
-  });
+  const transactions: Transaction[] = useMemo(
+    () => transactionsResponse?.data ?? [],
+    [transactionsResponse?.data]
+  );
+  const recurringTransactions: Transaction[] = useMemo(
+    () => recurringTransactionsResponse?.data ?? [],
+    [recurringTransactionsResponse?.data]
+  );
 
   const toggleTransaction = (id: string) => {
     setSelectedTransactions((prev) =>
@@ -108,11 +110,21 @@ export default function Page() {
 
   const toggleAll = () => {
     setSelectedTransactions(
-      selectedTransactions.length === filteredTransactions.length
+      selectedTransactions.length === transactions.length
         ? []
-        : filteredTransactions.map((t) => t.id),
+        : transactions.map((t) => t.id),
     );
   };
+
+  const handleOpenDeleteDialog = useCallback((transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleEditTransaction = useCallback((transaction: Transaction) => {
+    setUpdatingTransaction(transaction);
+    setIsUpdateTransactionOpen(true);
+  }, []);
 
   const handleCreate = useCallback(async (values: CreateTransactionFormValues) => {
     if (!defaultAccountId) return;
@@ -146,7 +158,7 @@ export default function Page() {
     const loadingToast = toast.loading("Updating transaction...");
 
     try {
-      const payload = {
+      const payload: UpdateTransactionPayload = {
         categoryId: values.categoryId,
         amount: values.amount,
         type: values.type,
@@ -166,11 +178,6 @@ export default function Page() {
     }
   }, [updateTransaction, updatingTransaction]);
 
-  const handleEditTransaction = useCallback((transaction: Transaction) => {
-    setUpdatingTransaction(transaction);
-    setIsUpdateTransactionOpen(true);
-  }, []);
-
   const handleToggleActiveStatus = useCallback(async (transaction: Transaction) => {
     const loadingToast = toast.loading(`${transaction.isActive ? "Deactivating" : "Activating"} transaction...`);
 
@@ -187,11 +194,6 @@ export default function Page() {
       toast.dismiss(loadingToast);
     }
   }, [updateTransaction]);
-
-  const handleOpenDeleteDialog = useCallback((transaction: Transaction) => {
-    setTransactionToDelete(transaction);
-    setIsDeleteDialogOpen(true);
-  }, []);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!transactionToDelete) return;
@@ -215,16 +217,29 @@ export default function Page() {
     }
   }, [transactionToDelete, deleteTransaction]);
 
-  // Calculate totals
-  const totalIncome = filteredTransactions
-    .filter((t) => t.type === "INCOME")
-    .reduce((sum: number, t) => sum + t.amount, 0);
+  // Calculate totals with useMemo for performance
+  const { totalIncome, totalExpenses, totalBalance } = useMemo(() => {
+    const income = transactions
+      .filter((t) => t.type === "INCOME")
+      .reduce((sum, t) => sum + t.amount, 0);
+    const expenses = transactions
+      .filter((t) => t.type === "EXPENSE")
+      .reduce((sum, t) => sum + t.amount, 0);
+    return {
+      totalIncome: income,
+      totalExpenses: expenses,
+      totalBalance: income - expenses,
+    };
+  }, [transactions]);
 
-  const totalExpenses = filteredTransactions
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((sum: number, t) => sum + t.amount, 0);
-
-  const totalBalance = totalIncome - totalExpenses;
+  const incomeCount = useMemo(
+    () => transactions.filter((t) => t.type === "INCOME").length,
+    [transactions]
+  );
+  const expenseCount = useMemo(
+    () => transactions.filter((t) => t.type === "EXPENSE").length,
+    [transactions]
+  );
 
   return (
     <>
@@ -236,32 +251,14 @@ export default function Page() {
               Manage and track all your financial transactions
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[var(--border)]"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[var(--border)]"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-              onClick={() => setIsAddTransactionOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Transaction
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+            onClick={() => setIsAddTransactionOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Button>
         </div>
 
         <div className="grid gap-4 md:gap-6 grid-cols-2 md:grid-cols-4">
@@ -292,7 +289,7 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold">
-                {filteredTransactions.length}
+                {transactions.length}
               </div>
               <p className="text-xs text-muted-foreground">
                 All transactions
@@ -312,8 +309,7 @@ export default function Page() {
                 ₹{totalIncome.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {filteredTransactions.filter((t) => t.type === "INCOME").length}{" "}
-                transactions
+                {incomeCount} transactions
               </p>
             </CardContent>
           </Card>
@@ -330,8 +326,7 @@ export default function Page() {
                 ₹{totalExpenses.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {filteredTransactions.filter((t) => t.type === "EXPENSE").length}{" "}
-                transactions
+                {expenseCount} transactions
               </p>
             </CardContent>
           </Card>
@@ -375,7 +370,7 @@ export default function Page() {
                       <Checkbox
                         checked={
                           selectedTransactions.length ===
-                          filteredTransactions.length
+                          transactions.length
                         }
                         onCheckedChange={() => toggleAll()}
                       />
@@ -399,14 +394,14 @@ export default function Page() {
                         Loading transactions...
                       </TableCell>
                     </TableRow>
-                  ) : filteredTransactions.length === 0 ? (
+                  ) : transactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-6">
                         No transactions found.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredTransactions.map((transaction) => (
+                    transactions.map((transaction) => (
                       <TableRow
                         key={transaction.id}
                         className="border-[var(--border)]"

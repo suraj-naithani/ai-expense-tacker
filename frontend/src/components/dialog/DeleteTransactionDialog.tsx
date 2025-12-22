@@ -9,15 +9,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-
-interface DeleteTransactionDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    transactionDescription?: string;
-    transactionAmount?: number;
-    transactionType?: string;
-    onConfirm: () => void;
-}
+import type { DeleteTransactionDialogProps } from "@/types/transaction";
 
 export function DeleteTransactionDialog({
     open,
@@ -27,13 +19,9 @@ export function DeleteTransactionDialog({
     transactionType,
     onConfirm,
 }: DeleteTransactionDialogProps) {
-    const handleClose = (next: boolean) => {
-        onOpenChange(next);
-    };
-
     const handleConfirm = () => {
         onConfirm();
-        handleClose(false);
+        onOpenChange(false);
     };
 
     const getTransactionInfo = () => {
@@ -51,7 +39,7 @@ export function DeleteTransactionDialog({
             {open && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-100" />
             )}
-            <Dialog open={open} onOpenChange={handleClose}>
+            <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="sm:max-w-[430px] bg-[var(--card)] border-[var(--border)] z-110">
                     <DialogHeader>
                         <DialogTitle>Delete transaction</DialogTitle>
@@ -68,7 +56,7 @@ export function DeleteTransactionDialog({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => handleClose(false)}
+                            onClick={() => onOpenChange(false)}
                             className="border-[var(--border)] hover:bg-[var(--card-hover)] cursor-pointer"
                         >
                             Cancel

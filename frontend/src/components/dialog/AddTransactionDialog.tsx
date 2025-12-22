@@ -25,34 +25,12 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 import type {
-  TransactionFormValues,
   TransactionType,
   RecurringInterval,
+  AddTransactionDialogProps,
+  FormState,
 } from "@/types/transaction";
-
-interface AddTransactionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSave: (values: TransactionFormValues) => void;
-}
-
-interface FormState {
-  type: TransactionType;
-  amount: string;
-  categoryId: string;
-  description: string;
-  isRecurring: boolean;
-  recurringInterval: string;
-}
-
-const initialState: FormState = {
-  type: "EXPENSE",
-  amount: "",
-  categoryId: "",
-  description: "",
-  isRecurring: false,
-  recurringInterval: "",
-};
+import { initialState, TRANSACTION_TYPES, RECURRING_INTERVALS } from "@/constants/config";
 
 export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransactionDialogProps) {
   const [form, setForm] = useState<FormState>(initialState);
@@ -99,7 +77,7 @@ export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransact
                 <Label htmlFor="type">Type *</Label>
                 <Select
                   value={form.type}
-                  onValueChange={(value: TransactionType) =>
+                  onValueChange={(value) =>
                     setForm(prev => ({ ...prev, type: value as TransactionType }))
                   }
                 >
@@ -107,12 +85,15 @@ export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransact
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                    <SelectItem value="EXPENSE" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                      Expense
-                    </SelectItem>
-                    <SelectItem value="INCOME" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                      Income
-                    </SelectItem>
+                    {TRANSACTION_TYPES.map((type) => (
+                      <SelectItem
+                        key={type.value}
+                        value={type.value}
+                        className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                      >
+                        {type.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -208,18 +189,15 @@ export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransact
                       <SelectValue placeholder="Select interval" />
                     </SelectTrigger>
                     <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                      <SelectItem value="DAILY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Daily
-                      </SelectItem>
-                      <SelectItem value="WEEKLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Weekly
-                      </SelectItem>
-                      <SelectItem value="MONTHLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Monthly
-                      </SelectItem>
-                      <SelectItem value="YEARLY" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Yearly
-                      </SelectItem>
+                      {RECURRING_INTERVALS.map((interval) => (
+                        <SelectItem
+                          key={interval.value}
+                          value={interval.value}
+                          className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                        >
+                          {interval.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

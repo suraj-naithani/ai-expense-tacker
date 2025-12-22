@@ -20,7 +20,6 @@ export interface UpdateTransactionFormValues {
     isActive?: boolean;
 }
 
-// Keep for backward compatibility
 export interface TransactionFormValues {
     type: TransactionType;
     amount: number;
@@ -106,7 +105,6 @@ export interface DeleteTransactionResponse {
     message: string;
 }
 
-// Query parameters for getTransactions
 export interface GetTransactionsQueryParams {
     page?: number;
     limit?: number;
@@ -116,7 +114,6 @@ export interface GetTransactionsQueryParams {
     isRecurring?: string;
 }
 
-// Extended response with pagination
 export interface GetTransactionsApiResponse extends GetTransactionsResponse {
     pagination?: {
         page: number;
@@ -126,7 +123,6 @@ export interface GetTransactionsApiResponse extends GetTransactionsResponse {
     };
 }
 
-// Recurring transaction template (the rule/schedule)
 export interface RecurringTransactionTemplate {
     id: string;
     userId: string;
@@ -161,3 +157,59 @@ export interface UpdateRecurringResponse {
     message: string;
     data: RecurringTransactionTemplate;
 }
+
+// Form state interfaces for dialogs
+export interface FormState {
+    type: TransactionType;
+    amount: string;
+    categoryId: string;
+    description: string;
+    isRecurring: boolean;
+    recurringInterval: string;
+}
+
+export interface UpdateFormState {
+    type: TransactionType;
+    amount: string;
+    categoryId: string;
+    description: string;
+    recurringInterval: string;
+    isActive: boolean;
+}
+
+export interface AddTransactionDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSave: (values: {
+        type: TransactionType;
+        amount: number;
+        categoryId: string;
+        description?: string;
+        isRecurring?: boolean;
+        recurringInterval?: RecurringInterval;
+    }) => void;
+}
+
+export interface UpdateTransactionDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    transaction: Transaction | null;
+    onSave: (values: {
+        type: TransactionType;
+        amount: number;
+        categoryId: string;
+        description?: string;
+        isActive?: boolean;
+        recurringInterval?: RecurringInterval;
+    }) => void;
+}
+
+export interface DeleteTransactionDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    transactionDescription?: string;
+    transactionAmount?: number;
+    transactionType?: TransactionType;
+    onConfirm: () => void;
+}
+
