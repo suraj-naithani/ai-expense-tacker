@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   Download,
   Edit,
@@ -12,7 +14,7 @@ import {
   TrendingDown,
   TrendingUp
 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
@@ -34,6 +36,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -65,14 +74,28 @@ export default function Page() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const defaultAccountId = useDefaultAccount();
+
+  // Reset to page 1 when account or page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [defaultAccountId, pageSize]);
+
+  const handlePageSizeChange = (newSize: string) => {
+    setPageSize(Number(newSize));
+    setSelectedTransactions([]);
+  };
 
   const {
     data: transactionsResponse,
     isLoading,
   } = useGetTransactionsQuery(
-    defaultAccountId ? { accountId: defaultAccountId, isRecurring: "false" } : { isRecurring: "false" },
+    defaultAccountId
+      ? { accountId: defaultAccountId, isRecurring: "false", page: currentPage, limit: pageSize }
+      : { isRecurring: "false", page: currentPage, limit: pageSize },
     {
       skip: !defaultAccountId,
       refetchOnMountOrArgChange: true,
@@ -97,6 +120,17 @@ export default function Page() {
     () => transactionsResponse?.data ?? [],
     [transactionsResponse?.data]
   );
+
+  const pagination = transactionsResponse?.pagination;
+  const totalPages = pagination?.totalPages ?? 1;
+  const totalItems = pagination?.total ?? 0;
+  const startItem = pagination ? (pagination.page - 1) * pagination.limit + 1 : 0;
+  const endItem = pagination ? Math.min(pagination.page * pagination.limit, totalItems) : 0;
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    setSelectedTransactions([]); // Clear selections when changing pages
+  };
   const recurringTransactions: Transaction[] = useMemo(
     () => recurringTransactionsResponse?.data ?? [],
     [recurringTransactionsResponse?.data]
@@ -495,6 +529,59 @@ export default function Page() {
                 </TableBody>
               </Table>
             </div>
+            {pagination && totalItems > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[var(--border)] pt-4 mt-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                  <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+                    <SelectTrigger className="w-[80px] h-8 border-[var(--border)] bg-[var(--card)]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[var(--card)] border-[var(--border)]">
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing {startItem} to {endItem} of {totalItems} transactions
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-[var(--border)]"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-default pointer-events-none"
+                      >
+                        {currentPage}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-[var(--border)]"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
