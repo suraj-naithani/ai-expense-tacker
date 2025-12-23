@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Edit, MoreHorizontal, Power, Trash2 } from "lucide-react";
+import moment from "moment";
 import type { TransactionsTableProps } from "@/types/transaction";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,9 +122,9 @@ export function TransactionsTable({
                                                 •{" "}
                                                 {isRecurring
                                                     ? transaction.nextExecutionDate
-                                                        ? new Date(transaction.nextExecutionDate).toLocaleDateString()
+                                                        ? moment(transaction.nextExecutionDate).format("DD/MM/YYYY")
                                                         : "Not set"
-                                                    : new Date(transaction.createdAt).toLocaleDateString()}
+                                                    : moment(transaction.createdAt).format("DD/MM/YYYY")}
                                             </div>
                                         </div>
                                     </TableCell>
@@ -149,13 +150,13 @@ export function TransactionsTable({
                                             </TableCell>
                                             <TableCell className="hidden sm:table-cell text-muted-foreground">
                                                 {transaction.nextExecutionDate
-                                                    ? new Date(transaction.nextExecutionDate).toLocaleDateString()
+                                                    ? moment(transaction.nextExecutionDate).format("DD/MM/YYYY")
                                                     : "Not set"}
                                             </TableCell>
                                         </>
                                     ) : (
                                         <TableCell className="hidden sm:table-cell text-muted-foreground">
-                                            {new Date(transaction.createdAt).toLocaleDateString()}
+                                            {moment(transaction.createdAt).format("DD/MM/YYYY")}
                                         </TableCell>
                                     )}
                                     <TableCell
