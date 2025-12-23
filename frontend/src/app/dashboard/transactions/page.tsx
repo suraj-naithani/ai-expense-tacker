@@ -1,26 +1,21 @@
 "use client";
 
 import {
-  ChevronLeft,
-  ChevronRight,
   DollarSign,
   Download,
-  Edit,
-  MoreHorizontal,
   Plus,
-  Power,
   Target,
   Trash2,
   TrendingDown,
   TrendingUp
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
 import { DeleteTransactionDialog } from "@/components/dialog/DeleteTransactionDialog";
 import { UpdateTransactionDialog } from "@/components/dialog/UpdateTransactionDialog";
-import { Badge } from "@/components/ui/badge";
+import { TransactionsTable } from "@/components/TransactionsTable";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,29 +24,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import { usePagination } from "@/hooks/usePagination";
 import {
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
@@ -74,20 +48,29 @@ export default function Page() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   const defaultAccountId = useDefaultAccount();
 
-  // Reset to page 1 when account or page size changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [defaultAccountId, pageSize]);
+  const {
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination({
+    defaultPageSize: 10,
+    resetDependencies: [defaultAccountId],
+    onPageSizeChange: () => setSelectedTransactions([]),
+  });
 
-  const handlePageSizeChange = (newSize: string) => {
-    setPageSize(Number(newSize));
-    setSelectedTransactions([]);
-  };
+  const {
+    currentPage: currentRecurringPage,
+    pageSize: recurringPageSize,
+    handlePageChange: handleRecurringPageChange,
+    handlePageSizeChange: handleRecurringPageSizeChange,
+  } = usePagination({
+    defaultPageSize: 10,
+    resetDependencies: [defaultAccountId],
+  });
 
   const {
     data: transactionsResponse,
@@ -105,7 +88,9 @@ export default function Page() {
   const {
     data: recurringTransactionsResponse,
   } = useGetTransactionsQuery(
-    defaultAccountId ? { accountId: defaultAccountId, isRecurring: "true" } : { isRecurring: "true" },
+    defaultAccountId
+      ? { accountId: defaultAccountId, isRecurring: "true", page: currentRecurringPage, limit: recurringPageSize }
+      : { isRecurring: "true", page: currentRecurringPage, limit: recurringPageSize },
     {
       skip: !defaultAccountId,
       refetchOnMountOrArgChange: true,
@@ -122,18 +107,21 @@ export default function Page() {
   );
 
   const pagination = transactionsResponse?.pagination;
-  const totalPages = pagination?.totalPages ?? 1;
-  const totalItems = pagination?.total ?? 0;
-  const startItem = pagination ? (pagination.page - 1) * pagination.limit + 1 : 0;
-  const endItem = pagination ? Math.min(pagination.page * pagination.limit, totalItems) : 0;
 
-  const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-    setSelectedTransactions([]); // Clear selections when changing pages
-  };
   const recurringTransactions: Transaction[] = useMemo(
     () => recurringTransactionsResponse?.data ?? [],
     [recurringTransactionsResponse?.data]
+  );
+
+  const recurringPagination = recurringTransactionsResponse?.pagination;
+
+  // Wrapper to clear selections when changing pages for regular transactions
+  const handlePageChangeWithClear = useCallback(
+    (newPage: number) => {
+      handlePageChange(newPage);
+      setSelectedTransactions([]);
+    },
+    [handlePageChange]
   );
 
   const toggleTransaction = (id: string) => {
@@ -412,176 +400,21 @@ export default function Page() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-[var(--border)]">
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={
-                          selectedTransactions.length ===
-                          transactions.length
-                        }
-                        onCheckedChange={() => toggleAll()}
-                      />
-                    </TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Category
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Account
-                    </TableHead>
-                    <TableHead className="hidden sm:table-cell">Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6">
-                        Loading transactions...
-                      </TableCell>
-                    </TableRow>
-                  ) : transactions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6">
-                        No transactions found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    transactions.map((transaction) => (
-                      <TableRow
-                        key={transaction.id}
-                        className="border-[var(--border)]"
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedTransactions.includes(
-                              transaction.id,
-                            )}
-                            onCheckedChange={() =>
-                              toggleTransaction(transaction.id)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div>
-                            <div>{transaction.description || "No description"}</div>
-                            <div className="sm:hidden text-xs text-muted-foreground mt-1">
-                              {transaction.category ? `${transaction.category.icon} ${transaction.category.name}` : "Uncategorized"} • {new Date(transaction.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Badge
-                            variant="secondary"
-                            className="bg-[var(--card-hover)]"
-                          >
-                            {transaction.category ? `${transaction.category.icon} ${transaction.category.name}` : "Uncategorized"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {transaction.account.name}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
-                          {new Date(transaction.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right font-medium ${transaction.type === "INCOME"
-                            ? "text-[#4ade80]"
-                            : "text-[#f87171]"
-                            }`}
-                        >
-                          {transaction.type === "INCOME" ? "+" : "-"}₹
-                          {Math.abs(transaction.amount).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              align="end"
-                              className="bg-[var(--card)] border-[var(--border)]"
-                            >
-                              <DropdownMenuItem onClick={() => handleEditTransaction(transaction)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-[#f87171]" onClick={() => handleOpenDeleteDialog(transaction)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            {pagination && totalItems > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[var(--border)] pt-4 mt-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">Rows per page:</span>
-                  <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
-                    <SelectTrigger className="w-[80px] h-8 border-[var(--border)] bg-[var(--card)]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[var(--card)] border-[var(--border)]">
-                      <SelectItem value="10">10</SelectItem>
-                      <SelectItem value="20">20</SelectItem>
-                      <SelectItem value="30">30</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-sm text-muted-foreground whitespace-nowrap">
-                    Showing {startItem} to {endItem} of {totalItems} transactions
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-[var(--border)]"
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-default pointer-events-none"
-                      >
-                        {currentPage}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="border-[var(--border)]"
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            <TransactionsTable
+              transactions={transactions}
+              isLoading={isLoading}
+              variant="regular"
+              selectedTransactions={selectedTransactions}
+              onSelectTransaction={toggleTransaction}
+              onSelectAll={toggleAll}
+              onEdit={handleEditTransaction}
+              onDelete={handleOpenDeleteDialog}
+              pagination={pagination}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={handlePageChangeWithClear}
+              onPageSizeChange={handlePageSizeChange}
+            />
           </CardContent>
         </Card>
 
@@ -595,110 +428,19 @@ export default function Page() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-[var(--border)]">
-                    <TableHead>Description</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Category
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Account
-                    </TableHead>
-                    <TableHead className="hidden sm:table-cell">Frequency</TableHead>
-                    <TableHead className="hidden sm:table-cell">Next Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recurringTransactions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center py-6">
-                        No recurring transactions found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    recurringTransactions.map((transaction) => (
-                      <TableRow
-                        key={transaction.id}
-                        className="border-[var(--border)]"
-                      >
-                        <TableCell className="font-medium">
-                          <div>
-                            <div>{transaction.description || "No description"}</div>
-                            <div className="sm:hidden text-xs text-muted-foreground mt-1">
-                              {transaction.category ? `${transaction.category.icon} ${transaction.category.name}` : "Uncategorized"} • {transaction.nextExecutionDate ? new Date(transaction.nextExecutionDate).toLocaleDateString() : "Not set"}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell">
-                          <Badge
-                            variant="secondary"
-                            className="bg-[var(--card-hover)]"
-                          >
-                            {transaction.category ? `${transaction.category.icon} ${transaction.category.name}` : "Uncategorized"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {transaction.account.name}
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
-                          <Badge variant="outline" className="text-xs">
-                            {transaction.recurringInterval ?
-                              transaction.recurringInterval.charAt(0).toUpperCase() + transaction.recurringInterval.slice(1).toLowerCase()
-                              : "Once"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="hidden sm:table-cell text-muted-foreground">
-                          {transaction.nextExecutionDate ? new Date(transaction.nextExecutionDate).toLocaleDateString() : "Not set"}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right font-medium ${transaction.type === "INCOME"
-                            ? "text-[#4ade80]"
-                            : "text-[#f87171]"
-                            }`}
-                        >
-                          {transaction.type === "INCOME" ? "+" : "-"}₹
-                          {Math.abs(transaction.amount).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              align="end"
-                              className="bg-[var(--card)] border-[var(--border)]"
-                            >
-                              <DropdownMenuItem onClick={() => handleEditTransaction(transaction)}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleToggleActiveStatus(transaction)}>
-                                <Power className="mr-2 h-4 w-4" />
-                                {transaction.isActive ? "Deactivate" : "Activate"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-[#f87171]" onClick={() => handleOpenDeleteDialog(transaction)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <TransactionsTable
+              transactions={recurringTransactions}
+              isLoading={false}
+              variant="recurring"
+              onEdit={handleEditTransaction}
+              onDelete={handleOpenDeleteDialog}
+              onToggleActive={handleToggleActiveStatus}
+              pagination={recurringPagination}
+              currentPage={currentRecurringPage}
+              pageSize={recurringPageSize}
+              onPageChange={handleRecurringPageChange}
+              onPageSizeChange={handleRecurringPageSizeChange}
+            />
           </CardContent>
         </Card>
       </div>

@@ -213,3 +213,25 @@ export interface DeleteTransactionDialogProps {
     onConfirm: () => void;
 }
 
+export interface TransactionsTableProps {
+    transactions: Transaction[];
+    isLoading?: boolean;
+    variant?: "regular" | "recurring";
+    selectedTransactions?: string[];
+    onSelectTransaction?: (id: string) => void;
+    onSelectAll?: () => void;
+    onEdit?: (transaction: Transaction) => void;
+    onDelete?: (transaction: Transaction) => void;
+    onToggleActive?: (transaction: Transaction) => void;
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+    currentPage: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: string) => void;
+    emptyMessage?: string;
+}
