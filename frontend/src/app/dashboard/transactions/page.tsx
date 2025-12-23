@@ -27,6 +27,7 @@ import {
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 import { usePagination } from "@/hooks/usePagination";
 import {
+  useBulkDeleteTransactionsMutation,
   useCreateTransactionMutation,
   useDeleteTransactionMutation,
   useGetTransactionsQuery,
@@ -43,9 +44,14 @@ export default function Page() {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
     [],
   );
+  const [selectedRecurringTransactions, setSelectedRecurringTransactions] = useState<string[]>(
+    [],
+  );
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteRecurringDialogOpen, setIsBulkDeleteRecurringDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
@@ -70,6 +76,7 @@ export default function Page() {
   } = usePagination({
     defaultPageSize: 10,
     resetDependencies: [defaultAccountId],
+    onPageSizeChange: () => setSelectedRecurringTransactions([]),
   });
 
   const {
@@ -99,6 +106,7 @@ export default function Page() {
 
   const [createTransaction] = useCreateTransactionMutation();
   const [deleteTransaction] = useDeleteTransactionMutation();
+  const [bulkDeleteTransactions] = useBulkDeleteTransactionsMutation();
   const [updateTransaction] = useUpdateTransactionMutation();
 
   const transactions: Transaction[] = useMemo(
@@ -124,6 +132,15 @@ export default function Page() {
     [handlePageChange]
   );
 
+  // Wrapper to clear selections when changing pages for recurring transactions
+  const handleRecurringPageChangeWithClear = useCallback(
+    (newPage: number) => {
+      handleRecurringPageChange(newPage);
+      setSelectedRecurringTransactions([]);
+    },
+    [handleRecurringPageChange]
+  );
+
   const toggleTransaction = (id: string) => {
     setSelectedTransactions((prev) =>
       prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id],
@@ -135,6 +152,20 @@ export default function Page() {
       selectedTransactions.length === transactions.length
         ? []
         : transactions.map((t) => t.id),
+    );
+  };
+
+  const toggleRecurringTransaction = (id: string) => {
+    setSelectedRecurringTransactions((prev) =>
+      prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAllRecurring = () => {
+    setSelectedRecurringTransactions(
+      selectedRecurringTransactions.length === recurringTransactions.length
+        ? []
+        : recurringTransactions.map((t) => t.id),
     );
   };
 
@@ -254,6 +285,64 @@ export default function Page() {
       toast.dismiss(loadingToast);
     }
   }, [transactionToDelete, deleteTransaction]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedTransactions.length === 0) return;
+    setIsBulkDeleteDialogOpen(true);
+  }, [selectedTransactions.length]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (selectedTransactions.length === 0) return;
+
+    const loadingToast = toast.loading(`Deleting ${selectedTransactions.length} transaction(s)...`);
+
+    try {
+      const result = await bulkDeleteTransactions({ ids: selectedTransactions }).unwrap();
+      toast.success(result.message, {
+        description: `${result.data.deletedCount} transaction(s) have been removed from your list.`,
+      });
+      setIsBulkDeleteDialogOpen(false);
+      setSelectedTransactions([]);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete transactions. Please try again.";
+      toast.error(errorMessage, {
+        description: "The transactions could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [selectedTransactions, bulkDeleteTransactions]);
+
+  const handleBulkDeleteRecurring = useCallback(() => {
+    if (selectedRecurringTransactions.length === 0) return;
+    setIsBulkDeleteRecurringDialogOpen(true);
+  }, [selectedRecurringTransactions.length]);
+
+  const handleConfirmBulkDeleteRecurring = useCallback(async () => {
+    if (selectedRecurringTransactions.length === 0) return;
+
+    const loadingToast = toast.loading(`Deleting ${selectedRecurringTransactions.length} recurring transaction(s)...`);
+
+    try {
+      const result = await bulkDeleteTransactions({ ids: selectedRecurringTransactions }).unwrap();
+      toast.success(result.message, {
+        description: `${result.data.deletedCount} recurring transaction(s) have been removed from your list.`,
+      });
+      setIsBulkDeleteRecurringDialogOpen(false);
+      setSelectedRecurringTransactions([]);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete recurring transactions. Please try again.";
+      toast.error(errorMessage, {
+        description: "The recurring transactions could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [selectedRecurringTransactions, bulkDeleteTransactions]);
 
   // Calculate totals with useMemo for performance
   const { totalIncome, totalExpenses, totalBalance } = useMemo(() => {
@@ -384,6 +473,7 @@ export default function Page() {
                   variant="outline"
                   size="sm"
                   className="border-[var(--border)]"
+                  onClick={handleBulkDelete}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete ({selectedTransactions.length})
@@ -426,19 +516,35 @@ export default function Page() {
                 Manage and track your recurring transactions
               </CardDescription>
             </div>
+            <div className="flex items-center gap-2">
+              {selectedRecurringTransactions.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-[var(--border)]"
+                  onClick={handleBulkDeleteRecurring}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete ({selectedRecurringTransactions.length})
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <TransactionsTable
               transactions={recurringTransactions}
               isLoading={false}
               variant="recurring"
+              selectedTransactions={selectedRecurringTransactions}
+              onSelectTransaction={toggleRecurringTransaction}
+              onSelectAll={toggleAllRecurring}
               onEdit={handleEditTransaction}
               onDelete={handleOpenDeleteDialog}
               onToggleActive={handleToggleActiveStatus}
               pagination={recurringPagination}
               currentPage={currentRecurringPage}
               pageSize={recurringPageSize}
-              onPageChange={handleRecurringPageChange}
+              onPageChange={handleRecurringPageChangeWithClear}
               onPageSizeChange={handleRecurringPageSizeChange}
             />
           </CardContent>
@@ -464,6 +570,18 @@ export default function Page() {
         transactionAmount={transactionToDelete?.amount}
         transactionType={transactionToDelete?.type}
         onConfirm={handleConfirmDelete}
+      />
+      <DeleteTransactionDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        bulkDeleteCount={selectedTransactions.length}
+        onConfirm={handleConfirmBulkDelete}
+      />
+      <DeleteTransactionDialog
+        open={isBulkDeleteRecurringDialogOpen}
+        onOpenChange={setIsBulkDeleteRecurringDialogOpen}
+        bulkDeleteCount={selectedRecurringTransactions.length}
+        onConfirm={handleConfirmBulkDeleteRecurring}
       />
     </>
   );

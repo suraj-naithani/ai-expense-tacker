@@ -18,6 +18,7 @@ export function DeleteTransactionDialog({
     transactionAmount,
     transactionType,
     onConfirm,
+    bulkDeleteCount,
 }: DeleteTransactionDialogProps) {
     const handleConfirm = () => {
         onConfirm();
@@ -25,6 +26,9 @@ export function DeleteTransactionDialog({
     };
 
     const getTransactionInfo = () => {
+        if (bulkDeleteCount && bulkDeleteCount > 0) {
+            return `${bulkDeleteCount} transaction${bulkDeleteCount > 1 ? "s" : ""}`;
+        }
         if (transactionDescription) {
             return transactionDescription;
         }
@@ -42,7 +46,9 @@ export function DeleteTransactionDialog({
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="sm:max-w-[430px] bg-[var(--card)] border-[var(--border)] z-110">
                     <DialogHeader>
-                        <DialogTitle>Delete transaction</DialogTitle>
+                        <DialogTitle>
+                            {bulkDeleteCount && bulkDeleteCount > 0 ? "Delete transactions" : "Delete transaction"}
+                        </DialogTitle>
                         <DialogDescription>
                             Are you sure you want to delete{" "}
                             <span className="font-medium text-foreground">
@@ -66,7 +72,7 @@ export function DeleteTransactionDialog({
                             onClick={handleConfirm}
                             className="bg-[#6366f1] hover:bg-[#4f46e5] cursor-pointer"
                         >
-                            Delete transaction
+                            {bulkDeleteCount && bulkDeleteCount > 0 ? "Delete transactions" : "Delete transaction"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { server } from "@/constants/config";
 import {
+    BulkDeleteTransactionResponse,
     CreateTransactionPayload,
     CreateTransactionResponse,
     DeleteTransactionResponse,
@@ -61,6 +62,15 @@ export const transactionApi = createApi({
             }),
             invalidatesTags: ["Transaction", "RecurringTransaction"],
         }),
+
+        bulkDeleteTransactions: builder.mutation<BulkDeleteTransactionResponse, { ids: string[] }>({
+            query: (body) => ({
+                url: "bulk-delete-transactions",
+                method: "DELETE",
+                body,
+            }),
+            invalidatesTags: ["Transaction", "RecurringTransaction"],
+        }),
     }),
 });
 
@@ -70,4 +80,5 @@ export const {
     useUpdateTransactionMutation,
     useToggleRecurringTransactionMutation,
     useDeleteTransactionMutation,
+    useBulkDeleteTransactionsMutation,
 } = transactionApi;

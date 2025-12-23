@@ -105,6 +105,14 @@ export interface DeleteTransactionResponse {
     message: string;
 }
 
+export interface BulkDeleteTransactionResponse {
+    success: boolean;
+    message: string;
+    data: {
+        deletedCount: number;
+    };
+}
+
 export interface GetTransactionsQueryParams {
     page?: number;
     limit?: number;
@@ -211,6 +219,7 @@ export interface DeleteTransactionDialogProps {
     transactionAmount?: number;
     transactionType?: TransactionType;
     onConfirm: () => void;
+    bulkDeleteCount?: number;
 }
 
 export interface TransactionsTableProps {

@@ -246,3 +246,47 @@ export const deleteTransaction = async (req: Request, res: Response) => {
         return res.status(500).json({ success: false, message: "Failed to delete transaction" });
     }
 };
+
+export const bulkDeleteTransactions = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id as string;
+    const { ids } = req.body as { ids: string[] };
+
+    try {
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Transaction IDs array is required and must not be empty"
+            });
+        }
+
+        // Directly delete transactions that belong to the user with the given ids
+        const result = await prisma.transaction.deleteMany({
+            where: {
+                id: { in: ids },
+                userId,
+            },
+        });
+
+        // If nothing was deleted, it means none of the IDs belonged to the user
+        if (result.count === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No transactions found with the provided IDs that belong to you"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Successfully deleted ${result.count} transaction(s)`,
+            data: {
+                deletedCount: result.count,
+            },
+        });
+    } catch (error) {
+        console.error("Bulk delete transactions error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete transactions"
+        });
+    }
+};

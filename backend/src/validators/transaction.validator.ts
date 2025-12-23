@@ -83,5 +83,9 @@ export const toggleRecurringParamSchema = z.object({
     id: z.string(),
 });
 
+export const bulkDeleteTransactionsSchema = z.object({
+    ids: z.array(z.string().min(1, "Transaction ID cannot be empty")).min(1, "At least one transaction ID is required"),
+});
+
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type UpdateRecurringInput = z.infer<typeof updateRecurringSchema>;

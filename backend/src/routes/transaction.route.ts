@@ -1,5 +1,6 @@
 import express from "express";
 import {
+    bulkDeleteTransactions,
     createTransaction,
     deleteTransaction,
     getTransactions,
@@ -9,6 +10,7 @@ import {
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { validate, validateParams } from "../middleware/validate.middleware.js";
 import {
+    bulkDeleteTransactionsSchema,
     createTransactionSchema,
     deleteTransactionParamSchema,
     toggleRecurringParamSchema,
@@ -28,5 +30,7 @@ app.patch("/update-transaction/:id", validate(updateTransactionSchema), updateTr
 app.patch("/toggle-recurring/:id", validateParams(toggleRecurringParamSchema), toggleRecurring);
 
 app.delete("/delete-transaction/:id", validateParams(deleteTransactionParamSchema), deleteTransaction);
+
+app.delete("/bulk-delete-transactions", validate(bulkDeleteTransactionsSchema), bulkDeleteTransactions);
 
 export default app;

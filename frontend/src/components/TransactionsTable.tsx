@@ -63,7 +63,7 @@ export function TransactionsTable({
                 <Table>
                     <TableHeader>
                         <TableRow className="border-[var(--border)]">
-                            {!isRecurring && onSelectTransaction && (
+                            {onSelectTransaction && (
                                 <TableHead className="w-[50px]">
                                     <Checkbox
                                         checked={
@@ -104,7 +104,7 @@ export function TransactionsTable({
                         ) : (
                             transactions.map((transaction) => (
                                 <TableRow key={transaction.id} className="border-[var(--border)]">
-                                    {!isRecurring && onSelectTransaction && (
+                                    {onSelectTransaction && (
                                         <TableCell>
                                             <Checkbox
                                                 checked={selectedTransactions.includes(transaction.id)}
