@@ -40,7 +40,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
 import { QuickAddExpenseDialog } from "@/components/dialog/QuickAddExpenseDialog";
 
 const spendingData = [
@@ -135,7 +134,6 @@ const recentTransactions = [
 
 const Page = () => {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
 
   return (
     <main className="flex-1 overflow-auto">
@@ -150,7 +148,9 @@ const Page = () => {
           <Button
             size="sm"
             className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-            onClick={() => setIsAddExpenseOpen(true)}
+            onClick={() => {
+              // TODO: Implement transaction dialog
+            }}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Transaction
@@ -264,7 +264,9 @@ const Page = () => {
               <Button
                 size="sm"
                 className="bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-pointer"
-                onClick={() => setIsAddExpenseOpen(true)}
+                onClick={() => {
+                  // TODO: Implement transaction dialog
+                }}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Custom
@@ -390,11 +392,10 @@ const Page = () => {
                           {transaction.description}
                         </p>
                         <p
-                          className={`text-sm font-medium ${
-                            transaction.type === "income"
-                              ? "text-[#4ade80]"
-                              : "text-[#f87171]"
-                          }`}
+                          className={`text-sm font-medium ${transaction.type === "income"
+                            ? "text-[#4ade80]"
+                            : "text-[#f87171]"
+                            }`}
                         >
                           {transaction.type === "income" ? "+" : ""}₹
                           {Math.abs(transaction.amount).toFixed(2)}
@@ -485,10 +486,10 @@ const Page = () => {
         </div>
       </div>
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
-      />
+      {/* <AddTransactionDialog
+        open={isAddTransactionOpen}
+        onOpenChange={setIsAddTransactionOpen}
+      /> */}
       <QuickAddExpenseDialog
         open={isQuickAddOpen}
         onOpenChange={setIsQuickAddOpen}

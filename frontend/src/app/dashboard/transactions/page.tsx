@@ -3,20 +3,19 @@
 import {
   DollarSign,
   Download,
-  Edit,
-  Filter,
-  MoreHorizontal,
   Plus,
-  Search,
   Target,
   Trash2,
   TrendingDown,
-  TrendingUp,
+  TrendingUp
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-import { AddExpenseDialog } from "@/components/dialog/AddExpenseDialog";
-import { Badge } from "@/components/ui/badge";
+import { AddTransactionDialog } from "@/components/dialog/AddTransactionDialog";
+import { DeleteTransactionDialog } from "@/components/dialog/DeleteTransactionDialog";
+import { UpdateTransactionDialog } from "@/components/dialog/UpdateTransactionDialog";
+import { TransactionsTable } from "@/components/TransactionsTable";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,95 +24,349 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import { usePagination } from "@/hooks/usePagination";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-
-const transactions = [
-  {
-    id: 1,
-    description: "Grocery Store",
-    category: "Food",
-    amount: -85.5,
-    date: "2024-01-15",
-    type: "expense",
-    account: "Credit Card",
-  },
-  {
-    id: 2,
-    description: "Salary",
-    category: "Income",
-    amount: 3500.0,
-    date: "2024-01-15",
-    type: "income",
-    account: "Bank Account",
-  },
-  {
-    id: 3,
-    description: "Gas Station",
-    category: "Transport",
-    amount: -45.2,
-    date: "2024-01-14",
-    type: "expense",
-    account: "Debit Card",
-  },
-  {
-    id: 4,
-    description: "Netflix",
-    category: "Entertainment",
-    amount: -15.99,
-    date: "2024-01-14",
-    type: "expense",
-    account: "Credit Card",
-  },
-  {
-    id: 5,
-    description: "Coffee Shop",
-    category: "Food",
-    amount: -12.5,
-    date: "2024-01-13",
-    type: "expense",
-    account: "Cash",
-  },
-];
+  useBulkDeleteTransactionsMutation,
+  useCreateTransactionMutation,
+  useDeleteTransactionMutation,
+  useGetTransactionsQuery,
+  useUpdateTransactionMutation,
+} from "@/redux/api/transactionApi";
+import type {
+  CreateTransactionFormValues,
+  Transaction,
+  UpdateTransactionFormValues,
+  UpdateTransactionPayload,
+} from "@/types/transaction";
 
 export default function Page() {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTransactions, setSelectedTransactions] = useState<number[]>(
+  const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
     [],
   );
-  const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false);
+  const [selectedRecurringTransactions, setSelectedRecurringTransactions] = useState<string[]>(
+    [],
+  );
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [isUpdateTransactionOpen, setIsUpdateTransactionOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteRecurringDialogOpen, setIsBulkDeleteRecurringDialogOpen] = useState(false);
+  const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
 
-  const filteredTransactions = transactions.filter((transaction) =>
-    transaction.description.toLowerCase().includes(searchQuery.toLowerCase()),
+  const defaultAccountId = useDefaultAccount();
+
+  const {
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination({
+    defaultPageSize: 10,
+    resetDependencies: [defaultAccountId],
+    onPageSizeChange: () => setSelectedTransactions([]),
+  });
+
+  const {
+    currentPage: currentRecurringPage,
+    pageSize: recurringPageSize,
+    handlePageChange: handleRecurringPageChange,
+    handlePageSizeChange: handleRecurringPageSizeChange,
+  } = usePagination({
+    defaultPageSize: 10,
+    resetDependencies: [defaultAccountId],
+    onPageSizeChange: () => setSelectedRecurringTransactions([]),
+  });
+
+  const {
+    data: transactionsResponse,
+    isLoading,
+  } = useGetTransactionsQuery(
+    defaultAccountId
+      ? { accountId: defaultAccountId, isRecurring: "false", page: currentPage, limit: pageSize }
+      : { isRecurring: "false", page: currentPage, limit: pageSize },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    },
   );
 
-  const toggleTransaction = (id: number) => {
+  const {
+    data: recurringTransactionsResponse,
+  } = useGetTransactionsQuery(
+    defaultAccountId
+      ? { accountId: defaultAccountId, isRecurring: "true", page: currentRecurringPage, limit: recurringPageSize }
+      : { isRecurring: "true", page: currentRecurringPage, limit: recurringPageSize },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    },
+  );
+
+  const [createTransaction] = useCreateTransactionMutation();
+  const [deleteTransaction] = useDeleteTransactionMutation();
+  const [bulkDeleteTransactions] = useBulkDeleteTransactionsMutation();
+  const [updateTransaction] = useUpdateTransactionMutation();
+
+  const transactions: Transaction[] = useMemo(
+    () => transactionsResponse?.data ?? [],
+    [transactionsResponse?.data]
+  );
+
+  const pagination = transactionsResponse?.pagination;
+
+  const recurringTransactions: Transaction[] = useMemo(
+    () => recurringTransactionsResponse?.data ?? [],
+    [recurringTransactionsResponse?.data]
+  );
+
+  const recurringPagination = recurringTransactionsResponse?.pagination;
+
+  // Wrapper to clear selections when changing pages for regular transactions
+  const handlePageChangeWithClear = useCallback(
+    (newPage: number) => {
+      handlePageChange(newPage);
+      setSelectedTransactions([]);
+    },
+    [handlePageChange]
+  );
+
+  // Wrapper to clear selections when changing pages for recurring transactions
+  const handleRecurringPageChangeWithClear = useCallback(
+    (newPage: number) => {
+      handleRecurringPageChange(newPage);
+      setSelectedRecurringTransactions([]);
+    },
+    [handleRecurringPageChange]
+  );
+
+  const toggleTransaction = (id: string) => {
     setSelectedTransactions((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id],
     );
   };
 
   const toggleAll = () => {
     setSelectedTransactions(
-      selectedTransactions.length === filteredTransactions.length
+      selectedTransactions.length === transactions.length
         ? []
-        : filteredTransactions.map((t) => t.id),
+        : transactions.map((t) => t.id),
     );
   };
+
+  const toggleRecurringTransaction = (id: string) => {
+    setSelectedRecurringTransactions((prev) =>
+      prev.includes(id) ? prev.filter((t: string) => t !== id) : [...prev, id],
+    );
+  };
+
+  const toggleAllRecurring = () => {
+    setSelectedRecurringTransactions(
+      selectedRecurringTransactions.length === recurringTransactions.length
+        ? []
+        : recurringTransactions.map((t) => t.id),
+    );
+  };
+
+  const handleOpenDeleteDialog = useCallback((transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleEditTransaction = useCallback((transaction: Transaction) => {
+    setUpdatingTransaction(transaction);
+    setIsUpdateTransactionOpen(true);
+  }, []);
+
+  const handleCreate = useCallback(async (values: CreateTransactionFormValues) => {
+    if (!defaultAccountId) return;
+
+    const loadingToast = toast.loading("Creating transaction...");
+
+    try {
+      const payload = {
+        accountId: defaultAccountId,
+        categoryId: values.categoryId,
+        amount: values.amount,
+        type: values.type,
+        description: values.description || undefined,
+        isRecurring: values.isRecurring || undefined,
+        recurringInterval: values.isRecurring ? values.recurringInterval : undefined,
+      };
+
+      await createTransaction(payload).unwrap();
+      toast.success("Transaction created successfully", {
+        description: "Your new transaction has been added to your list.",
+      });
+      setIsAddTransactionOpen(false);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to create transaction", {
+        description: "Please check your input and try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [createTransaction, defaultAccountId]);
+
+  const handleUpdate = useCallback(async (values: UpdateTransactionFormValues) => {
+    if (!updatingTransaction) return;
+
+    const loadingToast = toast.loading("Updating transaction...");
+
+    try {
+      const payload: UpdateTransactionPayload = {
+        categoryId: values.categoryId,
+        amount: values.amount,
+        type: values.type,
+        description: values.description || undefined,
+        isActive: values.isActive,
+        recurringInterval: values.recurringInterval,
+      };
+
+      await updateTransaction({ id: updatingTransaction.id, body: payload }).unwrap();
+      toast.success("Transaction updated successfully", {
+        description: "Your transaction changes have been saved.",
+      });
+      setIsUpdateTransactionOpen(false);
+      setUpdatingTransaction(null);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction", {
+        description: "Please check your input and try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [updateTransaction, updatingTransaction]);
+
+  const handleToggleActiveStatus = useCallback(async (transaction: Transaction) => {
+    const loadingToast = toast.loading(`${transaction.isActive ? "Deactivating" : "Activating"} transaction...`);
+
+    try {
+      const payload = {
+        isActive: !transaction.isActive,
+      };
+
+      await updateTransaction({ id: transaction.id, body: payload }).unwrap();
+      toast.success(`Transaction ${transaction.isActive ? "deactivated" : "activated"} successfully`, {
+        description: transaction.isActive
+          ? "This recurring transaction will no longer execute automatically."
+          : "This recurring transaction will now execute automatically.",
+      });
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update transaction status", {
+        description: "Please try again later.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [updateTransaction]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!transactionToDelete) return;
+
+    const loadingToast = toast.loading("Deleting transaction...");
+
+    try {
+      await deleteTransaction(transactionToDelete.id).unwrap();
+      toast.success("Transaction deleted successfully", {
+        description: "This transaction has been removed from your list.",
+      });
+      setIsDeleteDialogOpen(false);
+      setTransactionToDelete(null);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete transaction. Please try again.";
+      toast.error(errorMessage, {
+        description: "The transaction could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [transactionToDelete, deleteTransaction]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedTransactions.length === 0) return;
+    setIsBulkDeleteDialogOpen(true);
+  }, [selectedTransactions.length]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (selectedTransactions.length === 0) return;
+
+    const loadingToast = toast.loading(`Deleting ${selectedTransactions.length} transaction(s)...`);
+
+    try {
+      const result = await bulkDeleteTransactions({ ids: selectedTransactions }).unwrap();
+      toast.success(result.message, {
+        description: `${result.data.deletedCount} transaction(s) have been removed from your list.`,
+      });
+      setIsBulkDeleteDialogOpen(false);
+      setSelectedTransactions([]);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete transactions. Please try again.";
+      toast.error(errorMessage, {
+        description: "The transactions could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [selectedTransactions, bulkDeleteTransactions]);
+
+  const handleBulkDeleteRecurring = useCallback(() => {
+    if (selectedRecurringTransactions.length === 0) return;
+    setIsBulkDeleteRecurringDialogOpen(true);
+  }, [selectedRecurringTransactions.length]);
+
+  const handleConfirmBulkDeleteRecurring = useCallback(async () => {
+    if (selectedRecurringTransactions.length === 0) return;
+
+    const loadingToast = toast.loading(`Deleting ${selectedRecurringTransactions.length} recurring transaction(s)...`);
+
+    try {
+      const result = await bulkDeleteTransactions({ ids: selectedRecurringTransactions }).unwrap();
+      toast.success(result.message, {
+        description: `${result.data.deletedCount} recurring transaction(s) have been removed from your list.`,
+      });
+      setIsBulkDeleteRecurringDialogOpen(false);
+      setSelectedRecurringTransactions([]);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete recurring transactions. Please try again.";
+      toast.error(errorMessage, {
+        description: "The recurring transactions could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [selectedRecurringTransactions, bulkDeleteTransactions]);
+
+  // Calculate totals with useMemo for performance
+  const { totalIncome, totalExpenses, totalBalance } = useMemo(() => {
+    const income = transactions
+      .filter((t) => t.type === "INCOME")
+      .reduce((sum, t) => sum + t.amount, 0);
+    const expenses = transactions
+      .filter((t) => t.type === "EXPENSE")
+      .reduce((sum, t) => sum + t.amount, 0);
+    return {
+      totalIncome: income,
+      totalExpenses: expenses,
+      totalBalance: income - expenses,
+    };
+  }, [transactions]);
+
+  const incomeCount = useMemo(
+    () => transactions.filter((t) => t.type === "INCOME").length,
+    [transactions]
+  );
+  const expenseCount = useMemo(
+    () => transactions.filter((t) => t.type === "EXPENSE").length,
+    [transactions]
+  );
 
   return (
     <>
@@ -125,32 +378,14 @@ export default function Page() {
               Manage and track all your financial transactions
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[var(--border)]"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[var(--border)]"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-              onClick={() => setIsAddExpenseOpen(true)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Transaction
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+            onClick={() => setIsAddTransactionOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Transaction
+          </Button>
         </div>
 
         <div className="grid gap-4 md:gap-6 grid-cols-2 md:grid-cols-4">
@@ -162,11 +397,13 @@ export default function Page() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
-                ₹12,450.00
+              <div className={`text-xl md:text-2xl font-bold ${totalBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}`}>
+                ₹{totalBalance.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-[#4ade80]">+2.5%</span> from last month
+                <span className={totalBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}>
+                  {totalBalance >= 0 ? "+" : ""}
+                </span> from transactions
               </p>
             </CardContent>
           </Card>
@@ -179,10 +416,10 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold">
-                {filteredTransactions.length}
+                {transactions.length}
               </div>
               <p className="text-xs text-muted-foreground">
-                <span className="text-[#f87171]">-2.5%</span> from last month
+                All transactions
               </p>
             </CardContent>
           </Card>
@@ -196,15 +433,10 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-[#4ade80]">
-                $
-                {filteredTransactions
-                  .filter((t) => t.type === "income")
-                  .reduce((sum, t) => sum + t.amount, 0)
-                  .toFixed(2)}
+                ₹{totalIncome.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {filteredTransactions.filter((t) => t.type === "income").length}{" "}
-                transactions
+                {incomeCount} transactions
               </p>
             </CardContent>
           </Card>
@@ -218,19 +450,10 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-[#f87171]">
-                $
-                {Math.abs(
-                  filteredTransactions
-                    .filter((t) => t.type === "expense")
-                    .reduce((sum, t) => sum + t.amount, 0),
-                ).toFixed(2)}
+                ₹{totalExpenses.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {
-                  filteredTransactions.filter((t) => t.type === "expense")
-                    .length
-                }{" "}
-                transactions
+                {expenseCount} transactions
               </p>
             </CardContent>
           </Card>
@@ -250,6 +473,7 @@ export default function Page() {
                   variant="outline"
                   size="sm"
                   className="border-[var(--border)]"
+                  onClick={handleBulkDelete}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete ({selectedTransactions.length})
@@ -266,117 +490,98 @@ export default function Page() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-[var(--border)]">
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={
-                          selectedTransactions.length ===
-                          filteredTransactions.length
-                        }
-                        onCheckedChange={toggleAll}
-                      />
-                    </TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="hidden sm:table-cell">
-                      Category
-                    </TableHead>
-                    <TableHead className="hidden md:table-cell">
-                      Account
-                    </TableHead>
-                    <TableHead className="hidden sm:table-cell">Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTransactions.map((transaction) => (
-                    <TableRow
-                      key={transaction.id}
-                      className="border-[var(--border)]"
-                    >
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedTransactions.includes(
-                            transaction.id,
-                          )}
-                          onCheckedChange={() =>
-                            toggleTransaction(transaction.id)
-                          }
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <div>
-                          <div>{transaction.description}</div>
-                          <div className="sm:hidden text-xs text-muted-foreground mt-1">
-                            {transaction.category} • {transaction.date}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell">
-                        <Badge
-                          variant="secondary"
-                          className="bg-[var(--card-hover)]"
-                        >
-                          {transaction.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell text-muted-foreground">
-                        {transaction.account}
-                      </TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground">
-                        {transaction.date}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-medium ${
-                          transaction.type === "income"
-                            ? "text-[#4ade80]"
-                            : "text-[#f87171]"
-                        }`}
-                      >
-                        {transaction.type === "income" ? "+" : ""}$
-                        {Math.abs(transaction.amount).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="bg-[var(--card)] border-[var(--border)]"
-                          >
-                            <DropdownMenuItem>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-[#f87171]">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <TransactionsTable
+              transactions={transactions}
+              isLoading={isLoading}
+              variant="regular"
+              selectedTransactions={selectedTransactions}
+              onSelectTransaction={toggleTransaction}
+              onSelectAll={toggleAll}
+              onEdit={handleEditTransaction}
+              onDelete={handleOpenDeleteDialog}
+              pagination={pagination}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              onPageChange={handlePageChangeWithClear}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+            <div>
+              <CardTitle>Recurring Transactions</CardTitle>
+              <CardDescription>
+                Manage and track your recurring transactions
+              </CardDescription>
             </div>
+            <div className="flex items-center gap-2">
+              {selectedRecurringTransactions.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-[var(--border)]"
+                  onClick={handleBulkDeleteRecurring}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete ({selectedRecurringTransactions.length})
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <TransactionsTable
+              transactions={recurringTransactions}
+              isLoading={false}
+              variant="recurring"
+              selectedTransactions={selectedRecurringTransactions}
+              onSelectTransaction={toggleRecurringTransaction}
+              onSelectAll={toggleAllRecurring}
+              onEdit={handleEditTransaction}
+              onDelete={handleOpenDeleteDialog}
+              onToggleActive={handleToggleActiveStatus}
+              pagination={recurringPagination}
+              currentPage={currentRecurringPage}
+              pageSize={recurringPageSize}
+              onPageChange={handleRecurringPageChangeWithClear}
+              onPageSizeChange={handleRecurringPageSizeChange}
+            />
           </CardContent>
         </Card>
       </div>
 
-      <AddExpenseDialog
-        open={isAddExpenseOpen}
-        onOpenChange={setIsAddExpenseOpen}
+
+      <AddTransactionDialog
+        open={isAddTransactionOpen}
+        onOpenChange={setIsAddTransactionOpen}
+        onSave={handleCreate}
+      />
+      <UpdateTransactionDialog
+        open={isUpdateTransactionOpen}
+        onOpenChange={setIsUpdateTransactionOpen}
+        transaction={updatingTransaction}
+        onSave={handleUpdate}
+      />
+      <DeleteTransactionDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        transactionDescription={transactionToDelete?.description || undefined}
+        transactionAmount={transactionToDelete?.amount}
+        transactionType={transactionToDelete?.type}
+        onConfirm={handleConfirmDelete}
+      />
+      <DeleteTransactionDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        bulkDeleteCount={selectedTransactions.length}
+        onConfirm={handleConfirmBulkDelete}
+      />
+      <DeleteTransactionDialog
+        open={isBulkDeleteRecurringDialogOpen}
+        onOpenChange={setIsBulkDeleteRecurringDialogOpen}
+        bulkDeleteCount={selectedRecurringTransactions.length}
+        onConfirm={handleConfirmBulkDeleteRecurring}
       />
     </>
   );

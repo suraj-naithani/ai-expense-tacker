@@ -1,16 +1,22 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { accountApi } from "./api/accountApi";
 import { categoryApi } from "./api/categoryApi";
+import { transactionApi } from "./api/transactionApi";
 import defaultAccountReducer from "./slices/defaultAccountSlice";
 
 export const store = configureStore({
     reducer: {
         [accountApi.reducerPath]: accountApi.reducer,
         [categoryApi.reducerPath]: categoryApi.reducer,
+        [transactionApi.reducerPath]: transactionApi.reducer,
         defaultAccount: defaultAccountReducer,
     },
     middleware: (getDefaultMiddleware) =>
-        getDefaultMiddleware().concat(accountApi.middleware, categoryApi.middleware),
+        getDefaultMiddleware().concat(
+            accountApi.middleware,
+            categoryApi.middleware,
+            transactionApi.middleware,
+        ),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

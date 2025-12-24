@@ -23,81 +23,39 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import { useGetCategoriesQuery } from "@/redux/api/categoryApi";
 import type {
-  TransactionFormState,
-  CreateTransactionPayload,
+  TransactionType,
+  RecurringInterval,
+  AddTransactionDialogProps,
+  FormState,
 } from "@/types/transaction";
+import { initialState, TRANSACTION_TYPES, RECURRING_INTERVALS } from "@/constants/config";
 
-const categories = [
-  { value: "food", label: "Food & Dining", icon: "🍽️" },
-  { value: "transport", label: "Transportation", icon: "🚗" },
-  { value: "shopping", label: "Shopping", icon: "🛍️" },
-  { value: "bills", label: "Bills & Utilities", icon: "⚡" },
-  { value: "entertainment", label: "Entertainment", icon: "🎬" },
-  { value: "healthcare", label: "Healthcare", icon: "🏥" },
-  { value: "education", label: "Education", icon: "📚" },
-  { value: "travel", label: "Travel", icon: "✈️" },
-  { value: "income", label: "Income", icon: "💰" },
-  { value: "other", label: "Other", icon: "📌" },
-];
+export function AddTransactionDialog({ open, onOpenChange, onSave }: AddTransactionDialogProps) {
+  const [form, setForm] = useState<FormState>(initialState);
+  const { data: categoriesRes, isLoading: loadingCats } = useGetCategoriesQuery();
+  const categories = categoriesRes?.data || [];
 
-interface AddExpenseModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-const initialFormState: TransactionFormState = {
-  type: "expense",
-  amount: "",
-  category: "",
-  description: "",
-  isRecurring: false,
-  recurringInterval: "",
-};
-
-export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
-  const [formState, setFormState] = useState<TransactionFormState>(initialFormState);
-  const defaultAccountId = useDefaultAccount();
-
-  const updateField = <K extends keyof TransactionFormState>(
-    field: K,
-    value: TransactionFormState[K],
-  ) => {
-    setFormState((prev) => ({ ...prev, [field]: value }));
+  const resetAndClose = () => {
+    setForm(initialState);
+    onOpenChange(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const amount = parseFloat(form.amount);
+    if (!amount || !form.categoryId) return;
 
-    if (!formState.amount || !formState.category || !defaultAccountId) {
-      return;
-    }
-
-    if (formState.isRecurring && !formState.recurringInterval) {
-      return;
-    }
-
-    const transaction: CreateTransactionPayload = {
-      type: formState.type,
-      amount: Number.parseFloat(formState.amount),
-      category: formState.category,
-      description: formState.description,
-      accountId: defaultAccountId,
-      isRecurring: formState.isRecurring,
-      recurringInterval: formState.isRecurring
-        ? (formState.recurringInterval as CreateTransactionPayload["recurringInterval"])
-        : undefined,
-    };
-
-    console.log("New transaction:", transaction);
-
-    resetForm();
-    onOpenChange(false);
-  };
-
-  const resetForm = () => {
-    setFormState(initialFormState);
+    onSave({
+      type: form.type,
+      amount,
+      categoryId: form.categoryId,
+      description: form.description || undefined,
+      isRecurring: form.isRecurring || undefined,
+      recurringInterval: form.isRecurring ? form.recurringInterval as RecurringInterval : undefined,
+    });
+    resetAndClose();
   };
 
   return (
@@ -118,21 +76,24 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="type">Type *</Label>
                 <Select
-                  value={formState.type}
-                  onValueChange={(value: "expense" | "income") =>
-                    updateField("type", value)
+                  value={form.type}
+                  onValueChange={(value) =>
+                    setForm(prev => ({ ...prev, type: value as TransactionType }))
                   }
                 >
                   <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                    <SelectItem value="expense" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                      Expense
-                    </SelectItem>
-                    <SelectItem value="income" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                      Income
-                    </SelectItem>
+                    {TRANSACTION_TYPES.map((type) => (
+                      <SelectItem
+                        key={type.value}
+                        value={type.value}
+                        className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                      >
+                        {type.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -140,22 +101,33 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
               <div className="space-y-2">
                 <Label htmlFor="category">Category *</Label>
                 <Select
-                  value={formState.category}
-                  onValueChange={(value) => updateField("category", value)}
+                  value={form.categoryId}
+                  onValueChange={(value) => setForm(prev => ({ ...prev, categoryId: value }))}
+                  disabled={loadingCats}
                 >
                   <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder={loadingCats ? "Loading categories..." : "Select category"} />
                   </SelectTrigger>
                   <SelectContent className="bg-[var(--card)] border-[var(--border)] max-h-60 overflow-y-auto z-120">
-                    {categories.map((cat) => (
-                      <SelectItem
-                        key={cat.value}
-                        value={cat.value}
-                        className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
-                      >
-                        {cat.icon} {cat.label}
+                    {loadingCats ? (
+                      <SelectItem value="loading" disabled>
+                        Loading categories...
                       </SelectItem>
-                    ))}
+                    ) : categories.length === 0 ? (
+                      <SelectItem value="no-categories" disabled>
+                        No categories available
+                      </SelectItem>
+                    ) : (
+                      categories.map((cat) => (
+                        <SelectItem
+                          key={cat.id}
+                          value={cat.id}
+                          className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                        >
+                          {cat.icon} {cat.name}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -173,8 +145,8 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
                   step="0.01"
                   placeholder="0.00"
                   className="pl-7 bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
-                  value={formState.amount}
-                  onChange={(e) => updateField("amount", e.target.value)}
+                  value={form.amount}
+                  onChange={(e) => setForm(prev => ({ ...prev, amount: e.target.value }))}
                   required
                 />
               </div>
@@ -185,8 +157,8 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
               <Textarea
                 id="description"
                 placeholder="Enter description"
-                value={formState.description}
-                onChange={(e) => updateField("description", e.target.value)}
+                value={form.description}
+                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                 className="bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
               />
             </div>
@@ -201,34 +173,31 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
                 </div>
                 <Switch
                   id="recurring"
-                  checked={formState.isRecurring}
-                  onCheckedChange={(checked) => updateField("isRecurring", checked)}
+                  checked={form.isRecurring}
+                  onCheckedChange={(checked) => setForm(prev => ({ ...prev, isRecurring: checked }))}
                 />
               </div>
 
-              {formState.isRecurring && (
+              {form.isRecurring && (
                 <div className="space-y-2">
                   <Label htmlFor="recurringInterval">Recurring Interval *</Label>
                   <Select
-                    value={formState.recurringInterval}
-                    onValueChange={(value) => updateField("recurringInterval", value)}
+                    value={form.recurringInterval}
+                    onValueChange={(value) => setForm(prev => ({ ...prev, recurringInterval: value }))}
                   >
                     <SelectTrigger className="w-full bg-[var(--card)] border-[var(--border)] rounded-md cursor-pointer py-2 px-3 focus:outline-none focus:ring-1 focus:ring-[#3b3b4b]">
                       <SelectValue placeholder="Select interval" />
                     </SelectTrigger>
                     <SelectContent className="bg-[var(--card)] border-[var(--border)] z-120">
-                      <SelectItem value="daily" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Daily
-                      </SelectItem>
-                      <SelectItem value="weekly" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Weekly
-                      </SelectItem>
-                      <SelectItem value="monthly" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Monthly
-                      </SelectItem>
-                      <SelectItem value="yearly" className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]">
-                        Yearly
-                      </SelectItem>
+                      {RECURRING_INTERVALS.map((interval) => (
+                        <SelectItem
+                          key={interval.value}
+                          value={interval.value}
+                          className="hover:bg-[var(--card-hover)] focus:bg-[var(--card-hover)]"
+                        >
+                          {interval.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -239,10 +208,7 @@ export function AddExpenseDialog({ open, onOpenChange }: AddExpenseModalProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => {
-                  resetForm();
-                  onOpenChange(false);
-                }}
+                onClick={resetAndClose}
                 className="border-[var(--border)] hover:bg-[var(--card)] cursor-pointer"
               >
                 Cancel

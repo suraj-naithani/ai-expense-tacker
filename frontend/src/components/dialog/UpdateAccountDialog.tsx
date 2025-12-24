@@ -24,19 +24,19 @@ import { Switch } from "@/components/ui/switch";
 
 import type { AccountFormValues, AccountType } from "./AddAccountDialog";
 
-interface EditAccountDialogProps {
+interface UpdateAccountDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     account: AccountFormValues | null;
     onSave: (account: AccountFormValues) => void;
 }
 
-export function EditAccountDialog({
+export function UpdateAccountDialog({
     open,
     onOpenChange,
     account,
     onSave,
-}: EditAccountDialogProps) {
+}: UpdateAccountDialogProps) {
     const [name, setName] = useState("");
     const [type, setType] = useState<AccountType>("current");
     const [initialBalance, setInitialBalance] = useState<string>("");
@@ -88,7 +88,7 @@ export function EditAccountDialog({
             <Dialog open={open} onOpenChange={handleClose}>
                 <DialogContent className="sm:max-w-[430px] bg-[var(--card)] border-[var(--border)] z-110">
                     <DialogHeader>
-                        <DialogTitle>Edit account</DialogTitle>
+                        <DialogTitle>Update account</DialogTitle>
                         <DialogDescription>
                             Update the details of your account.
                         </DialogDescription>
@@ -96,9 +96,9 @@ export function EditAccountDialog({
 
                     <form onSubmit={handleSubmit} className="space-y-4 py-2">
                         <div className="space-y-2">
-                            <Label htmlFor="edit-account-name">Account name</Label>
+                            <Label htmlFor="update-account-name">Account name</Label>
                             <Input
-                                id="edit-account-name"
+                                id="update-account-name"
                                 placeholder="Work, Personal, Business..."
                                 className="bg-[var(--card)] border-[var(--border)]"
                                 value={name}
@@ -134,7 +134,7 @@ export function EditAccountDialog({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="edit-initial-balance">
+                            <Label htmlFor="update-initial-balance">
                                 Balance
                             </Label>
                             <div className="relative">
@@ -142,7 +142,7 @@ export function EditAccountDialog({
                                     ₹
                                 </span>
                                 <Input
-                                    id="edit-initial-balance"
+                                    id="update-initial-balance"
                                     type="number"
                                     step="0.01"
                                     placeholder="0.00"

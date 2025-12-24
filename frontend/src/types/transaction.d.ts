@@ -1,6 +1,33 @@
-export type TransactionType = "expense" | "income";
+export type TransactionType = "EXPENSE" | "INCOME";
 
-export type RecurringInterval = "daily" | "weekly" | "monthly" | "yearly";
+export type RecurringInterval = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+
+export interface CreateTransactionFormValues {
+    type: TransactionType;
+    amount: number;
+    categoryId: string;
+    description?: string;
+    isRecurring?: boolean;
+    recurringInterval?: RecurringInterval;
+}
+
+export interface UpdateTransactionFormValues {
+    type: TransactionType;
+    amount: number;
+    categoryId: string;
+    description?: string;
+    recurringInterval?: RecurringInterval;
+    isActive?: boolean;
+}
+
+export interface TransactionFormValues {
+    type: TransactionType;
+    amount: number;
+    categoryId: string;
+    description?: string;
+    isRecurring?: boolean;
+    recurringInterval?: RecurringInterval;
+}
 
 export interface TransactionFormState {
     type: TransactionType;
@@ -12,27 +39,38 @@ export interface TransactionFormState {
 }
 
 export interface CreateTransactionPayload {
-    type: TransactionType;
-    amount: number;
-    category: string;
-    description: string;
     accountId: string;
-    isRecurring: boolean;
+    categoryId?: string;
+    amount: number;
+    type: TransactionType;
+    description?: string;
+    isRecurring?: boolean;
     recurringInterval?: RecurringInterval;
 }
 
 export interface Transaction {
     id: string;
-    type: TransactionType;
+    userId: string;
     amount: number;
-    category: string;
-    description: string;
-    accountId: string;
+    type: TransactionType;
+    description: string | null;
     isRecurring: boolean;
-    recurringInterval?: RecurringInterval;
-    date: string;
+    recurringInterval: RecurringInterval | null;
+    nextExecutionDate: string | null;
+    isActive: boolean;
+    parentRecurringId: string | null;
     createdAt: string;
     updatedAt: string;
+    account: {
+        id: string;
+        name: string;
+        type: string;
+    };
+    category: {
+        id: string;
+        name: string;
+        icon: string;
+    } | null;
 }
 
 export interface CreateTransactionResponse {
@@ -49,11 +87,17 @@ export interface GetTransactionsResponse {
 
 export interface UpdateTransactionPayload {
     type?: TransactionType;
+    categoryId?: string;
     amount?: number;
-    category?: string;
     description?: string;
-    isRecurring?: boolean;
+    isActive?: boolean;
     recurringInterval?: RecurringInterval;
+}
+
+export interface UpdateTransactionResponse {
+    success: boolean;
+    message: string;
+    data: Transaction;
 }
 
 export interface DeleteTransactionResponse {
@@ -61,3 +105,142 @@ export interface DeleteTransactionResponse {
     message: string;
 }
 
+export interface BulkDeleteTransactionResponse {
+    success: boolean;
+    message: string;
+    data: {
+        deletedCount: number;
+    };
+}
+
+export interface GetTransactionsQueryParams {
+    page?: number;
+    limit?: number;
+    type?: TransactionType;
+    categoryId?: string;
+    accountId?: string;
+    isRecurring?: string;
+}
+
+export interface GetTransactionsApiResponse extends GetTransactionsResponse {
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+}
+
+export interface RecurringTransactionTemplate {
+    id: string;
+    userId: string;
+    accountId: string;
+    categoryId: string | null;
+    amount: number;
+    type: TransactionType;
+    description: string | null;
+    isRecurring: boolean;
+    recurringInterval: RecurringInterval | null;
+    nextExecutionDate: string | null;
+    isActive: boolean;
+    parentRecurringId: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface UpdateRecurringPayload {
+    isActive?: boolean;
+    recurringInterval?: RecurringInterval;
+    nextExecutionDate?: string;
+}
+
+export interface ToggleRecurringResponse {
+    success: boolean;
+    message: string;
+    data: RecurringTransactionTemplate;
+}
+
+export interface UpdateRecurringResponse {
+    success: boolean;
+    message: string;
+    data: RecurringTransactionTemplate;
+}
+
+// Form state interfaces for dialogs
+export interface FormState {
+    type: TransactionType;
+    amount: string;
+    categoryId: string;
+    description: string;
+    isRecurring: boolean;
+    recurringInterval: string;
+}
+
+export interface UpdateFormState {
+    type: TransactionType;
+    amount: string;
+    categoryId: string;
+    description: string;
+    recurringInterval: string;
+    isActive: boolean;
+}
+
+export interface AddTransactionDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onSave: (values: {
+        type: TransactionType;
+        amount: number;
+        categoryId: string;
+        description?: string;
+        isRecurring?: boolean;
+        recurringInterval?: RecurringInterval;
+    }) => void;
+}
+
+export interface UpdateTransactionDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    transaction: Transaction | null;
+    onSave: (values: {
+        type: TransactionType;
+        amount: number;
+        categoryId: string;
+        description?: string;
+        isActive?: boolean;
+        recurringInterval?: RecurringInterval;
+    }) => void;
+}
+
+export interface DeleteTransactionDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    transactionDescription?: string;
+    transactionAmount?: number;
+    transactionType?: TransactionType;
+    onConfirm: () => void;
+    bulkDeleteCount?: number;
+}
+
+export interface TransactionsTableProps {
+    transactions: Transaction[];
+    isLoading?: boolean;
+    variant?: "regular" | "recurring";
+    selectedTransactions?: string[];
+    onSelectTransaction?: (id: string) => void;
+    onSelectAll?: () => void;
+    onEdit?: (transaction: Transaction) => void;
+    onDelete?: (transaction: Transaction) => void;
+    onToggleActive?: (transaction: Transaction) => void;
+    pagination?: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPages: number;
+    };
+    currentPage: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (size: string) => void;
+    emptyMessage?: string;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { Edit2, MoreVertical, Plus, Trash2, Wallet } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
     AddAccountDialog,
@@ -9,7 +9,7 @@ import {
 } from "@/components/dialog/AddAccountDialog";
 import { Loader } from "@/components/loader";
 import { DeleteAccountDialog } from "@/components/dialog/DeleteAccountDialog";
-import { EditAccountDialog } from "@/components/dialog/EditAccountDialog";
+import { UpdateAccountDialog } from "@/components/dialog/UpdateAccountDialog";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -42,8 +42,8 @@ type Account = AccountFormValues;
 export default function AccountsPage() {
     const [accounts, setAccounts] = useState<Account[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [updatingAccount, setUpdatingAccount] = useState<Account | null>(null);
+    const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
     const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -64,7 +64,7 @@ export default function AccountsPage() {
         [accounts],
     );
 
-    const handleCreateAccount = async (account: AccountFormValues) => {
+    const handleCreateAccount = useCallback(async (account: AccountFormValues) => {
         const loadingToast = toast.loading("Creating account...");
 
         try {
@@ -88,9 +88,9 @@ export default function AccountsPage() {
         } finally {
             toast.dismiss(loadingToast);
         }
-    };
+    }, [createAccount]);
 
-    const handleToggleDefault = async (id: string) => {
+    const handleToggleDefault = useCallback(async (id: string) => {
         const accountToUpdate = accounts.find((account) => account.id === id);
         if (!accountToUpdate) return;
 
@@ -123,9 +123,9 @@ export default function AccountsPage() {
         } finally {
             toast.dismiss(loadingToast);
         }
-    };
+    }, [accounts, isUpdatingAccount, updateAccount]);
 
-    const handleSaveEdit = async (updated: AccountFormValues) => {
+    const handleSaveEdit = useCallback(async (updated: AccountFormValues) => {
         if (!updated.id) return;
 
         const loadingToast = toast.loading("Updating account...");
@@ -142,8 +142,8 @@ export default function AccountsPage() {
             toast.success("Account updated successfully", {
                 description: "Your changes have been saved.",
             });
-            setIsEditDialogOpen(false);
-            setEditingAccount(null);
+            setIsUpdateDialogOpen(false);
+            setUpdatingAccount(null);
         } catch (error: unknown) {
             const errorMessage =
                 (error as { data?: { message?: string } })?.data?.message ||
@@ -152,19 +152,19 @@ export default function AccountsPage() {
         } finally {
             toast.dismiss(loadingToast);
         }
-    };
+    }, [updateAccount]);
 
-    const handleOpenEdit = (account: Account) => {
-        setEditingAccount(account);
-        setIsEditDialogOpen(true);
-    };
+    const handleOpenEdit = useCallback((account: Account) => {
+        setUpdatingAccount(account);
+        setIsUpdateDialogOpen(true);
+    }, []);
 
-    const handleOpenDelete = (account: Account) => {
+    const handleOpenDelete = useCallback((account: Account) => {
         setAccountToDelete(account);
         setIsDeleteDialogOpen(true);
-    };
+    }, []);
 
-    const handleConfirmDelete = async () => {
+    const handleConfirmDelete = useCallback(async () => {
         if (!accountToDelete) return;
 
         const loadingToast = toast.loading("Deleting account...");
@@ -184,7 +184,7 @@ export default function AccountsPage() {
         } finally {
             toast.dismiss(loadingToast);
         }
-    };
+    }, [accountToDelete, deleteAccount]);
 
     return (
         <div className="space-y-6">
@@ -304,10 +304,10 @@ export default function AccountsPage() {
                 onSave={handleCreateAccount}
             />
 
-            <EditAccountDialog
-                open={isEditDialogOpen}
-                onOpenChange={setIsEditDialogOpen}
-                account={editingAccount}
+            <UpdateAccountDialog
+                open={isUpdateDialogOpen}
+                onOpenChange={setIsUpdateDialogOpen}
+                account={updatingAccount}
                 onSave={handleSaveEdit}
             />
 
