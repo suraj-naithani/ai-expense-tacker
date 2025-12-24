@@ -2,6 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { accountApi } from "./api/accountApi";
 import { categoryApi } from "./api/categoryApi";
 import { transactionApi } from "./api/transactionApi";
+import { paymentApi } from "./api/paymentApi";
 import defaultAccountReducer from "./slices/defaultAccountSlice";
 
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
         [accountApi.reducerPath]: accountApi.reducer,
         [categoryApi.reducerPath]: categoryApi.reducer,
         [transactionApi.reducerPath]: transactionApi.reducer,
+        [paymentApi.reducerPath]: paymentApi.reducer,
         defaultAccount: defaultAccountReducer,
     },
     middleware: (getDefaultMiddleware) =>
@@ -16,6 +18,7 @@ export const store = configureStore({
             accountApi.middleware,
             categoryApi.middleware,
             transactionApi.middleware,
+            paymentApi.middleware,
         ),
 });
 

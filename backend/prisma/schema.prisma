@@ -27,6 +27,7 @@ model User {
   financialAccounts FinancialAccount[]
   categories       Category[]
   transactions     Transaction[]
+  payments         Payment[]
 
   @@unique([email])
   @@map("user")
@@ -172,4 +173,36 @@ model Transaction {
   @@index([accountId])
   @@index([categoryId])
   @@map("transaction")
+}
+
+enum PaymentType {
+  LENT
+  BORROWED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+model Payment {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount      Float
+  personName  String
+  type        PaymentType
+  description String?
+  dueDate     DateTime?
+  status      PaymentStatus @default(PENDING)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([userId, status])
+  @@map("payment")
 }

@@ -30,17 +30,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { CreatePaymentFormValues, PaymentType } from "@/types/payment";
 
 interface PaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   type: "lent" | "borrowed";
+  onSave: (values: CreatePaymentFormValues) => void;
 }
 
 export function AddPaymentDialog({
   open,
   onOpenChange,
   type,
+  onSave,
 }: PaymentModalProps) {
   const [amount, setAmount] = useState("");
   const [personName, setPersonName] = useState("");
@@ -56,18 +59,16 @@ export function AddPaymentDialog({
       return;
     }
 
-    const record = {
-      id: Date.now(),
+    const paymentType: PaymentType = type === "lent" ? "LENT" : "BORROWED";
+
+    onSave({
       amount: Number.parseFloat(amount),
       personName,
-      description,
-      dueDate: dueDate?.toISOString(),
-      type,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    console.log("New record:", record);
+      type: paymentType,
+      description: description || undefined,
+      dueDate: dueDate?.toISOString() || undefined,
+      status: "PENDING",
+    });
 
     resetForm();
     onOpenChange(false);
@@ -99,7 +100,7 @@ export function AddPaymentDialog({
                 <Label htmlFor="amount">Amount *</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    $
+                    ₹
                   </span>
                   <Input
                     id="amount"
@@ -159,9 +160,10 @@ export function AddPaymentDialog({
               <Popover open={openDatePicker} onOpenChange={setOpenDatePicker}>
                 <PopoverTrigger asChild>
                   <Button
+                    type="button"
                     id="dueDate"
                     variant="outline"
-                    className="w-full justify-start text-left font-normal  bg-[var(--card)] border-[var(--border)] hover:bg-[#1e1e24]"
+                    className="w-full justify-start text-left font-normal bg-[var(--card)] border-[var(--border)] hover:bg-[#1e1e24]"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dueDate ? (
@@ -172,7 +174,7 @@ export function AddPaymentDialog({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="w-auto p-0  bg-[var(--card)] border-[var(--border)]"
+                  className="w-auto p-0 bg-[var(--card)] border-[var(--border)] z-[150]"
                   align="start"
                 >
                   <Calendar
@@ -183,7 +185,7 @@ export function AddPaymentDialog({
                       setOpenDatePicker(false);
                     }}
                     initialFocus
-                    className="bg-[#18181b]"
+                    className="bg-[var(--card)]"
                   />
                 </PopoverContent>
               </Popover>

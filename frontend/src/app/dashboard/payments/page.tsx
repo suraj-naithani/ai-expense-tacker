@@ -2,6 +2,8 @@
 
 import {
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   Edit,
   Filter,
@@ -12,9 +14,11 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
+import moment from "moment";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,6 +37,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -41,122 +52,112 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddPaymentDialog } from "@/components/dialog/AddPaymentDialog";
-
-interface PaymentRecord {
-  id: number;
-  name: string;
-  amount: number;
-  date: string;
-  dueDate: string;
-  status: string;
-  description: string;
-  avatar: string;
-  type: "lent" | "borrowed";
-}
-
-const allPayments: PaymentRecord[] = [
-  {
-    id: 1,
-    name: "John Smith",
-    amount: 500,
-    date: "2024-01-10",
-    dueDate: "2024-02-10",
-    status: "pending",
-    description: "Emergency loan",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "lent",
-  },
-  {
-    id: 2,
-    name: "Sarah Johnson",
-    amount: 250,
-    date: "2024-01-05",
-    dueDate: "2024-01-25",
-    status: "overdue",
-    description: "Car repair",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "lent",
-  },
-  {
-    id: 3,
-    name: "Mike Wilson",
-    amount: 150,
-    date: "2023-12-20",
-    dueDate: "2024-01-20",
-    status: "paid",
-    description: "Dinner expenses",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "lent",
-  },
-  {
-    id: 4,
-    name: "Emily Davis",
-    amount: 300,
-    date: "2024-01-12",
-    dueDate: "2024-02-12",
-    status: "pending",
-    description: "Medical bills",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "lent",
-  },
-  {
-    id: 5,
-    name: "Alex Thompson",
-    amount: 800,
-    date: "2024-01-08",
-    dueDate: "2024-02-08",
-    status: "pending",
-    description: "Business investment",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "borrowed",
-  },
-  {
-    id: 6,
-    name: "Lisa Brown",
-    amount: 200,
-    date: "2023-12-15",
-    dueDate: "2024-01-15",
-    status: "overdue",
-    description: "Rent assistance",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "borrowed",
-  },
-  {
-    id: 7,
-    name: "David Miller",
-    amount: 450,
-    date: "2023-11-20",
-    dueDate: "2023-12-20",
-    status: "new",
-    description: "Laptop purchase",
-    avatar: "/placeholder.svg?height=32&width=32",
-    type: "borrowed",
-  },
-];
-
-const lentMoney = allPayments.filter((p) => p.type === "lent");
-const borrowedMoney = allPayments.filter((p) => p.type === "borrowed");
+import { UpdatePaymentDialog } from "@/components/dialog/UpdatePaymentDialog";
+import { DeletePaymentDialog } from "@/components/dialog/DeletePaymentDialog";
+import { usePagination } from "@/hooks/usePagination";
+import {
+  useCreatePaymentMutation,
+  useGetPaymentsQuery,
+  useUpdatePaymentMutation,
+  useUpdatePaymentStatusMutation,
+  useDeletePaymentMutation,
+  useBulkDeletePaymentsMutation,
+} from "@/redux/api/paymentApi";
+import type { CreatePaymentFormValues, Payment, UpdatePaymentFormValues, UpdatePaymentPayload } from "@/types/payment";
 
 export default function Page() {
-  const [selectedPayments, setSelectedPayments] = useState<number[]>([]);
+  const [selectedPayments, setSelectedPayments] = useState<string[]>([]);
   const [isLendModalOpen, setIsLendModalOpen] = useState(false);
+  const [isUpdatePaymentOpen, setIsUpdatePaymentOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
+  const [updatingPayment, setUpdatingPayment] = useState<Payment | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [modalType] = useState<"lent" | "borrowed">("lent");
 
+  const {
+    currentPage,
+    pageSize,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination({
+    defaultPageSize: 10,
+    onPageSizeChange: () => setSelectedPayments([]),
+  });
+
+  const {
+    data: paymentsResponse,
+    isLoading,
+    error,
+    isError,
+  } = useGetPaymentsQuery(
+    { page: currentPage, limit: pageSize },
+    {
+      refetchOnMountOrArgChange: true,
+    },
+  );
+
+  const [createPayment] = useCreatePaymentMutation();
+  const [updatePayment] = useUpdatePaymentMutation();
+  const [updatePaymentStatus] = useUpdatePaymentStatusMutation();
+  const [deletePayment] = useDeletePaymentMutation();
+  const [bulkDeletePayments] = useBulkDeletePaymentsMutation();
+
+  const payments: Payment[] = useMemo(
+    () => paymentsResponse?.data ?? [],
+    [paymentsResponse?.data]
+  );
+
+  const pagination = paymentsResponse?.pagination;
+
+  // Calculate stats from all payments on current page
+  const { lentMoney, borrowedMoney, totalLent, totalBorrowed, pendingLent, pendingBorrowed } = useMemo(() => {
+    const lent = payments.filter((p) => p.type === "LENT");
+    const borrowed = payments.filter((p) => p.type === "BORROWED");
+
+    const totalLentAmount = lent.reduce((sum, item) => sum + item.amount, 0);
+    const totalBorrowedAmount = borrowed.reduce((sum, item) => sum + item.amount, 0);
+    const pendingLentAmount = lent
+      .filter((item) => item.status === "PENDING")
+      .reduce((sum, item) => sum + item.amount, 0);
+    const pendingBorrowedAmount = borrowed
+      .filter((item) => item.status === "PENDING")
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    return {
+      lentMoney: lent,
+      borrowedMoney: borrowed,
+      totalLent: totalLentAmount,
+      totalBorrowed: totalBorrowedAmount,
+      pendingLent: pendingLentAmount,
+      pendingBorrowed: pendingBorrowedAmount,
+    };
+  }, [payments]);
+
+  // Wrapper to clear selections when changing pages
+  const handlePageChangeWithClear = useCallback(
+    (newPage: number) => {
+      handlePageChange(newPage);
+      setSelectedPayments([]);
+    },
+    [handlePageChange]
+  );
+
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
+    switch (status.toUpperCase()) {
+      case "PENDING":
         return (
           <Badge className="rounded-full bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20">
             Pending
           </Badge>
         );
-      case "overdue":
+      case "OVERDUE":
         return (
           <Badge className="rounded-full bg-[#f87171]/10 text-[#f87171] border-[#f87171]/20">
             Overdue
           </Badge>
         );
-      case "paid":
+      case "PAID":
         return (
           <Badge className="rounded-full bg-[#4ade80]/10 text-[#4ade80] border-[#4ade80]/20">
             Paid
@@ -171,19 +172,7 @@ export default function Page() {
     }
   };
 
-  const totalLent = lentMoney.reduce((sum, item) => sum + item.amount, 0);
-  const totalBorrowed = borrowedMoney.reduce(
-    (sum, item) => sum + item.amount,
-    0,
-  );
-  const pendingLent = lentMoney
-    .filter((item) => item.status === "pending")
-    .reduce((sum, item) => sum + item.amount, 0);
-  const pendingBorrowed = borrowedMoney
-    .filter((item) => item.status === "pending")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const togglePayment = (id: number) => {
+  const togglePayment = (id: string) => {
     setSelectedPayments((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
     );
@@ -191,11 +180,148 @@ export default function Page() {
 
   const toggleAll = () => {
     setSelectedPayments(
-      selectedPayments.length === allPayments.length
+      selectedPayments.length === payments.length
         ? []
-        : allPayments.map((p) => p.id),
+        : payments.map((p) => p.id),
     );
   };
+
+  const handleCreate = useCallback(async (values: CreatePaymentFormValues) => {
+    const loadingToast = toast.loading("Creating payment...");
+
+    try {
+      const payload = {
+        amount: values.amount,
+        personName: values.personName,
+        type: values.type,
+        description: values.description || undefined,
+        dueDate: values.dueDate || undefined,
+        status: values.status || undefined,
+      };
+
+      await createPayment(payload).unwrap();
+      toast.success("Payment created successfully", {
+        description: "Your new payment has been added to your list.",
+      });
+      setIsLendModalOpen(false);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to create payment", {
+        description: "Please check your input and try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [createPayment]);
+
+  const handleEditPayment = useCallback((payment: Payment) => {
+    setUpdatingPayment(payment);
+    setIsUpdatePaymentOpen(true);
+  }, []);
+
+  const handleUpdate = useCallback(async (values: UpdatePaymentFormValues) => {
+    if (!updatingPayment) return;
+
+    const loadingToast = toast.loading("Updating payment...");
+
+    try {
+      const payload: UpdatePaymentPayload = {
+        amount: values.amount,
+        personName: values.personName,
+        type: values.type,
+        description: values.description || undefined,
+        dueDate: values.dueDate || undefined,
+        status: values.status || undefined,
+      };
+
+      await updatePayment({ id: updatingPayment.id, body: payload }).unwrap();
+      toast.success("Payment updated successfully", {
+        description: "Your payment changes have been saved.",
+      });
+      setIsUpdatePaymentOpen(false);
+      setUpdatingPayment(null);
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update payment", {
+        description: "Please check your input and try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [updatePayment, updatingPayment]);
+
+  const handleUpdateStatus = useCallback(async (payment: Payment, status: "PENDING" | "PAID" | "OVERDUE") => {
+    const loadingToast = toast.loading(`Updating payment status to ${status}...`);
+
+    try {
+      await updatePaymentStatus({ id: payment.id, status }).unwrap();
+      toast.success("Payment status updated successfully", {
+        description: `Payment status has been changed to ${status}.`,
+      });
+    } catch (error: unknown) {
+      toast.error((error as { data?: { message?: string } })?.data?.message || "Failed to update payment status", {
+        description: "Please try again later.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [updatePaymentStatus]);
+
+  const handleDeletePayment = useCallback((payment: Payment) => {
+    setPaymentToDelete(payment);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!paymentToDelete) return;
+
+    const loadingToast = toast.loading("Deleting payment...");
+
+    try {
+      await deletePayment(paymentToDelete.id).unwrap();
+      toast.success("Payment deleted successfully", {
+        description: "This payment has been removed from your list.",
+      });
+      setIsDeleteDialogOpen(false);
+      setPaymentToDelete(null);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete payment. Please try again.";
+      toast.error(errorMessage, {
+        description: "The payment could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [paymentToDelete, deletePayment]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedPayments.length === 0) return;
+    setIsBulkDeleteDialogOpen(true);
+  }, [selectedPayments.length]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (selectedPayments.length === 0) return;
+
+    const loadingToast = toast.loading(`Deleting ${selectedPayments.length} payment(s)...`);
+
+    try {
+      const result = await bulkDeletePayments({ ids: selectedPayments }).unwrap();
+      toast.success(result.message, {
+        description: `${result.data.deletedCount} payment(s) have been removed from your list.`,
+      });
+      setIsBulkDeleteDialogOpen(false);
+      setSelectedPayments([]);
+    } catch (error: unknown) {
+      const errorMessage =
+        (error as { data?: { message?: string } })?.data?.message ||
+        "Failed to delete payments. Please try again.";
+      toast.error(errorMessage, {
+        description: "The payments could not be removed. Please try again.",
+      });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  }, [selectedPayments, bulkDeletePayments]);
 
   return (
     <>
@@ -237,10 +363,10 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
-                ${totalLent.toFixed(2)}
+                ₹{totalLent.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {lentMoney.length} people
+                {lentMoney.length} {lentMoney.length === 1 ? "person" : "people"}
               </p>
             </CardContent>
           </Card>
@@ -254,10 +380,10 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold text-[#f87171]">
-                ${totalBorrowed.toFixed(2)}
+                ₹{totalBorrowed.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {borrowedMoney.length} people
+                {borrowedMoney.length} {borrowedMoney.length === 1 ? "person" : "people"}
               </p>
             </CardContent>
           </Card>
@@ -271,7 +397,7 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold text-[#f59e0b]">
-                ${pendingLent.toFixed(2)}
+                ₹{pendingLent.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">Money to collect</p>
             </CardContent>
@@ -286,7 +412,7 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="text-xl md:text-2xl font-bold text-[#a78bfa]">
-                ${pendingBorrowed.toFixed(2)}
+                ₹{pendingBorrowed.toFixed(2)}
               </div>
               <p className="text-xs text-muted-foreground">Money to pay back</p>
             </CardContent>
@@ -307,6 +433,7 @@ export default function Page() {
                   variant="outline"
                   size="sm"
                   className="border-[var(--border)]"
+                  onClick={handleBulkDelete}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete ({selectedPayments.length})
@@ -330,7 +457,7 @@ export default function Page() {
                     <TableHead className="w-[50px]">
                       <Checkbox
                         checked={
-                          selectedPayments.length === allPayments.length && allPayments.length > 0
+                          selectedPayments.length === payments.length && payments.length > 0
                         }
                         onCheckedChange={toggleAll}
                       />
@@ -346,74 +473,91 @@ export default function Page() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allPayments.length === 0 ? (
+                  {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6">
+                      <TableCell colSpan={9} className="text-center py-6">
+                        Loading payments...
+                      </TableCell>
+                    </TableRow>
+                  ) : isError ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-6">
+                        <div className="flex flex-col items-center gap-2">
+                          <p className="text-destructive">
+                            Failed to load payments
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {(error as { data?: { message?: string } })?.data?.message || "Please try again later."}
+                          </p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : payments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-6">
                         No payments found.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    allPayments.map((record) => (
+                    payments.map((payment) => (
                       <TableRow
-                        key={record.id}
+                        key={payment.id}
                         className="border-[var(--border)]"
                       >
                         <TableCell>
                           <Checkbox
-                            checked={selectedPayments.includes(record.id)}
-                            onCheckedChange={() => togglePayment(record.id)}
+                            checked={selectedPayments.includes(payment.id)}
+                            onCheckedChange={() => togglePayment(payment.id)}
                           />
                         </TableCell>
                         <TableCell className="font-medium">
                           <div>
                             <div className="flex items-center gap-3">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage
-                                  src={record.avatar || "/placeholder.svg"}
-                                  alt={record.name}
-                                />
                                 <AvatarFallback className="bg-[#6366f1] text-white">
-                                  {record.name
+                                  {payment.personName
                                     .split(" ")
                                     .map((n) => n[0])
-                                    .join("")}
+                                    .join("")
+                                    .toUpperCase()
+                                    .slice(0, 2)}
                                 </AvatarFallback>
                               </Avatar>
-                              <span>{record.name}</span>
+                              <span>{payment.personName}</span>
                             </div>
                             <div className="sm:hidden text-xs text-muted-foreground mt-1">
-                              {record.type === "lent" ? "Lent" : "Borrowed"} • ${record.amount} • {record.date}
+                              {payment.type === "LENT" ? "Lent" : "Borrowed"} • ₹{payment.amount.toFixed(2)} • {moment(payment.createdAt).format("MMM DD, YYYY")}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell className="hidden sm:table-cell">
                           <Badge
                             variant="secondary"
-                            className={`bg-[var(--card-hover)] ${record.type === "lent"
+                            className={`bg-[var(--card-hover)] ${payment.type === "LENT"
                               ? "text-[#4ade80]"
                               : "text-[#f87171]"
                               }`}
                           >
-                            {record.type === "lent" ? "Lent" : "Borrowed"}
+                            {payment.type === "LENT" ? "Lent" : "Borrowed"}
                           </Badge>
                         </TableCell>
                         <TableCell
-                          className={`hidden sm:table-cell font-medium ${record.type === "lent"
+                          className={`hidden sm:table-cell font-medium ${payment.type === "LENT"
                             ? "text-[#4ade80]"
                             : "text-[#f87171]"
                             }`}
                         >
-                          {record.type === "lent" ? "+" : "-"}${record.amount}
+                          {payment.type === "LENT" ? "+" : "-"}₹{payment.amount.toFixed(2)}
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {record.date}
+                          {moment(payment.createdAt).format("MMM DD, YYYY")}
                         </TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground">
-                          {record.dueDate}
+                          {payment.dueDate ? moment(payment.dueDate).format("MMM DD, YYYY") : "-"}
                         </TableCell>
-                        <TableCell>{getStatusBadge(record.status)}</TableCell>
+                        <TableCell>{getStatusBadge(payment.status)}</TableCell>
                         <TableCell className="hidden lg:table-cell text-muted-foreground">
-                          {record.description}
+                          {payment.description || "-"}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -426,15 +570,30 @@ export default function Page() {
                               align="end"
                               className="bg-[var(--card)] border-[var(--border)]"
                             >
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                Mark as Paid
-                              </DropdownMenuItem>
+                              {payment.status !== "PAID" && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(payment, "PAID")}>
+                                  Mark as Paid
+                                </DropdownMenuItem>
+                              )}
+                              {payment.status !== "PENDING" && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(payment, "PENDING")}>
+                                  Mark as Pending
+                                </DropdownMenuItem>
+                              )}
+                              {payment.status !== "OVERDUE" && (
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(payment, "OVERDUE")}>
+                                  Mark as Overdue
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuSeparator className="bg-[var(--card)]" />
-                              <DropdownMenuItem className="text-[#f87171]">
+                              <DropdownMenuItem
+                                className="text-[#f87171]"
+                                onClick={() => handleDeletePayment(payment)}
+                              >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>
@@ -447,6 +606,59 @@ export default function Page() {
                 </TableBody>
               </Table>
             </div>
+            {pagination && pagination.total > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[var(--border)] pt-4 mt-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">Rows per page:</span>
+                  <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+                    <SelectTrigger className="w-[80px] h-8 border-[var(--border)] bg-[var(--card)]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[var(--card)] border-[var(--border)]">
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-muted-foreground whitespace-nowrap">
+                    Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} payments
+                  </div>
+                  {pagination.totalPages > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-[var(--border)]"
+                        onClick={() => handlePageChangeWithClear(currentPage - 1)}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-[#6366f1] hover:bg-[#4f46e5] text-white cursor-default pointer-events-none"
+                      >
+                        {currentPage}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-[var(--border)]"
+                        onClick={() => handlePageChangeWithClear(currentPage + 1)}
+                        disabled={currentPage === pagination.totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -454,6 +666,27 @@ export default function Page() {
         open={isLendModalOpen}
         onOpenChange={setIsLendModalOpen}
         type={modalType}
+        onSave={handleCreate}
+      />
+      <UpdatePaymentDialog
+        open={isUpdatePaymentOpen}
+        onOpenChange={setIsUpdatePaymentOpen}
+        payment={updatingPayment}
+        onSave={handleUpdate}
+      />
+      <DeletePaymentDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        paymentPersonName={paymentToDelete?.personName}
+        paymentAmount={paymentToDelete?.amount}
+        paymentType={paymentToDelete?.type}
+        onConfirm={handleConfirmDelete}
+      />
+      <DeletePaymentDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+        onConfirm={handleConfirmBulkDelete}
+        bulkDeleteCount={selectedPayments.length}
       />
     </>
   );
