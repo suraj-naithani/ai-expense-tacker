@@ -15,6 +15,7 @@ export function usePagination(options: UsePaginationOptions = {}) {
 
   useEffect(() => {
     setCurrentPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, resetDependencies);
 
   useEffect(() => {
