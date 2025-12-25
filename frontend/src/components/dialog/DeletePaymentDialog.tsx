@@ -15,7 +15,6 @@ interface DeletePaymentDialogProps {
     onOpenChange: (open: boolean) => void;
     paymentPersonName?: string;
     paymentAmount?: number;
-    paymentType?: "LENT" | "BORROWED";
     onConfirm: () => void;
     bulkDeleteCount?: number;
 }
@@ -25,7 +24,6 @@ export function DeletePaymentDialog({
     onOpenChange,
     paymentPersonName,
     paymentAmount,
-    paymentType,
     onConfirm,
     bulkDeleteCount,
 }: DeletePaymentDialogProps) {

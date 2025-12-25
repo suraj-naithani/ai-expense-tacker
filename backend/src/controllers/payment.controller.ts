@@ -82,7 +82,6 @@ export const updatePayment = async (req: Request, res: Response) => {
     const body = req.body as UpdatePaymentRequest;
 
     try {
-        // First, check the current payment status if status is being updated
         if (body.status !== undefined) {
             const existingPayment = await prisma.payment.findFirst({
                 where: { id, userId },
@@ -92,7 +91,6 @@ export const updatePayment = async (req: Request, res: Response) => {
                 return res.status(404).json({ success: false, message: "Payment not found" });
             }
 
-            // If payment is already paid, prevent changing to pending or overdue
             if (existingPayment.status === "PAID" && (body.status === "PENDING" || body.status === "OVERDUE")) {
                 return res.status(400).json({
                     success: false,
@@ -134,7 +132,6 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
     const { status } = req.body as { status: "PENDING" | "PAID" | "OVERDUE" };
 
     try {
-        // First, check the current payment status
         const existingPayment = await prisma.payment.findFirst({
             where: { id, userId },
         });
@@ -143,7 +140,6 @@ export const updatePaymentStatus = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: "Payment not found" });
         }
 
-        // If payment is already paid, prevent changing to pending or overdue
         if (existingPayment.status === "PAID" && (status === "PENDING" || status === "OVERDUE")) {
             return res.status(400).json({
                 success: false,

@@ -45,28 +45,30 @@ export function AddPaymentDialog({
   type,
   onSave,
 }: PaymentModalProps) {
-  const [amount, setAmount] = useState("");
-  const [personName, setPersonName] = useState("");
-  const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState<Date>();
+  const [form, setForm] = useState({
+    amount: "",
+    personName: "",
+    description: "",
+    dueDate: undefined as Date | undefined,
+    dialogType: type as "lent" | "borrowed",
+  });
   const [openDatePicker, setOpenDatePicker] = useState(false);
-  const [dialogType, setDialogType] = useState(type);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!amount || !personName) {
+    if (!form.amount || !form.personName) {
       return;
     }
 
-    const paymentType: PaymentType = type === "lent" ? "LENT" : "BORROWED";
+    const paymentType: PaymentType = form.dialogType === "lent" ? "LENT" : "BORROWED";
 
     onSave({
-      amount: Number.parseFloat(amount),
-      personName,
+      amount: Number.parseFloat(form.amount),
+      personName: form.personName,
       type: paymentType,
-      description: description || undefined,
-      dueDate: dueDate?.toISOString() || undefined,
+      description: form.description || undefined,
+      dueDate: form.dueDate?.toISOString() || undefined,
       status: "PENDING",
     });
 
@@ -75,10 +77,13 @@ export function AddPaymentDialog({
   };
 
   const resetForm = () => {
-    setAmount("");
-    setPersonName("");
-    setDescription("");
-    setDueDate(undefined);
+    setForm({
+      amount: "",
+      personName: "",
+      description: "",
+      dueDate: undefined,
+      dialogType: type,
+    });
   };
 
   return (
@@ -108,8 +113,8 @@ export function AddPaymentDialog({
                     step="0.01"
                     placeholder="0.00"
                     className="pl-7  bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    value={form.amount}
+                    onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
                     required
                   />
                 </div>
@@ -121,8 +126,8 @@ export function AddPaymentDialog({
                   id="personName"
                   placeholder="Enter name"
                   className=" bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
-                  value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
+                  value={form.personName}
+                  onChange={(e) => setForm((prev) => ({ ...prev, personName: e.target.value }))}
                   required
                 />
               </div>
@@ -130,9 +135,9 @@ export function AddPaymentDialog({
             <div className="space-y-2">
               <Label htmlFor="type">Transaction Type *</Label>
               <Select
-                value={dialogType}
+                value={form.dialogType}
                 onValueChange={(value: "lent" | "borrowed") =>
-                  setDialogType(value)
+                  setForm((prev) => ({ ...prev, dialogType: value }))
                 }
               >
                 <SelectTrigger className="z-[130] w-full bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]">
@@ -149,8 +154,8 @@ export function AddPaymentDialog({
               <Textarea
                 id="description"
                 placeholder="What was this money for?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 className=" bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
               />
             </div>
@@ -166,8 +171,8 @@ export function AddPaymentDialog({
                     className="w-full justify-start text-left font-normal bg-[var(--card)] border-[var(--border)] hover:bg-[#1e1e24]"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? (
-                      format(dueDate, "PPP")
+                    {form.dueDate ? (
+                      format(form.dueDate, "PPP")
                     ) : (
                       <span>Pick a due date</span>
                     )}
@@ -179,9 +184,9 @@ export function AddPaymentDialog({
                 >
                   <Calendar
                     mode="single"
-                    selected={dueDate}
+                    selected={form.dueDate}
                     onSelect={(date) => {
-                      setDueDate(date);
+                      setForm((prev) => ({ ...prev, dueDate: date }));
                       setOpenDatePicker(false);
                     }}
                     initialFocus

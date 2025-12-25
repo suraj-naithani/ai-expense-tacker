@@ -45,51 +45,57 @@ export function UpdatePaymentDialog({
     payment,
     onSave,
 }: UpdatePaymentDialogProps) {
-    const [amount, setAmount] = useState("");
-    const [personName, setPersonName] = useState("");
-    const [description, setDescription] = useState("");
-    const [dueDate, setDueDate] = useState<Date>();
+    const [form, setForm] = useState({
+        amount: "",
+        personName: "",
+        description: "",
+        dueDate: undefined as Date | undefined,
+        paymentType: "lent" as "lent" | "borrowed",
+        status: "PENDING" as PaymentStatus,
+    });
     const [openDatePicker, setOpenDatePicker] = useState(false);
-    const [paymentType, setPaymentType] = useState<"lent" | "borrowed">("lent");
-    const [status, setStatus] = useState<PaymentStatus>("PENDING");
 
     useEffect(() => {
         if (open && payment) {
-            setAmount(payment.amount.toString());
-            setPersonName(payment.personName);
-            setDescription(payment.description || "");
-            setDueDate(payment.dueDate ? new Date(payment.dueDate) : undefined);
-            setPaymentType(payment.type === "LENT" ? "lent" : "borrowed");
-            setStatus(payment.status);
+            setForm({
+                amount: payment.amount.toString(),
+                personName: payment.personName,
+                description: payment.description || "",
+                dueDate: payment.dueDate ? new Date(payment.dueDate) : undefined,
+                paymentType: payment.type === "LENT" ? "lent" : "borrowed",
+                status: payment.status,
+            });
         }
     }, [open, payment]);
 
     const resetAndClose = () => {
-        setAmount("");
-        setPersonName("");
-        setDescription("");
-        setDueDate(undefined);
-        setPaymentType("lent");
-        setStatus("PENDING");
+        setForm({
+            amount: "",
+            personName: "",
+            description: "",
+            dueDate: undefined,
+            paymentType: "lent",
+            status: "PENDING",
+        });
         onOpenChange(false);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!amount || !personName) {
+        if (!form.amount || !form.personName) {
             return;
         }
 
-        const type: PaymentType = paymentType === "lent" ? "LENT" : "BORROWED";
+        const type: PaymentType = form.paymentType === "lent" ? "LENT" : "BORROWED";
 
         onSave({
-            amount: Number.parseFloat(amount),
-            personName,
+            amount: Number.parseFloat(form.amount),
+            personName: form.personName,
             type,
-            description: description || undefined,
-            dueDate: dueDate?.toISOString() || undefined,
-            status,
+            description: form.description || undefined,
+            dueDate: form.dueDate?.toISOString() || undefined,
+            status: form.status,
         });
 
         resetAndClose();
@@ -124,8 +130,8 @@ export function UpdatePaymentDialog({
                                         step="0.01"
                                         placeholder="0.00"
                                         className="pl-7 bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
-                                        value={amount}
-                                        onChange={(e) => setAmount(e.target.value)}
+                                        value={form.amount}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
                                         required
                                     />
                                 </div>
@@ -137,8 +143,8 @@ export function UpdatePaymentDialog({
                                     id="personName"
                                     placeholder="Enter name"
                                     className="bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
-                                    value={personName}
-                                    onChange={(e) => setPersonName(e.target.value)}
+                                    value={form.personName}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, personName: e.target.value }))}
                                     required
                                 />
                             </div>
@@ -146,9 +152,9 @@ export function UpdatePaymentDialog({
                         <div className="space-y-2">
                             <Label htmlFor="type">Transaction Type *</Label>
                             <Select
-                                value={paymentType}
+                                value={form.paymentType}
                                 onValueChange={(value: "lent" | "borrowed") =>
-                                    setPaymentType(value)
+                                    setForm((prev) => ({ ...prev, paymentType: value }))
                                 }
                             >
                                 <SelectTrigger className="z-[130] w-full bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]">
@@ -163,10 +169,11 @@ export function UpdatePaymentDialog({
                         <div className="space-y-2">
                             <Label htmlFor="status">Status</Label>
                             <Select
-                                value={status}
-                                onValueChange={(value: PaymentStatus) => setStatus(value)}
+                                value={form.status}
+                                onValueChange={(value: PaymentStatus) => setForm((prev) => ({ ...prev, status: value }))}
+                                disabled={payment.status === "PAID"}
                             >
-                                <SelectTrigger className="z-[130] w-full bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]">
+                                <SelectTrigger className="z-[130] w-full bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]" disabled={payment.status === "PAID"}>
                                     <SelectValue placeholder="Select status" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-[var(--card)] border-[var(--border)] z-[130]">
@@ -181,8 +188,8 @@ export function UpdatePaymentDialog({
                             <Textarea
                                 id="description"
                                 placeholder="What was this money for?"
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
+                                value={form.description}
+                                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                                 className="bg-[var(--card)] border-[var(--border)] focus:border-[#6366f1]"
                             />
                         </div>
@@ -198,8 +205,8 @@ export function UpdatePaymentDialog({
                                         className="w-full justify-start text-left font-normal bg-[var(--card)] border-[var(--border)] hover:bg-[#1e1e24]"
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {dueDate ? (
-                                            format(dueDate, "PPP")
+                                        {form.dueDate ? (
+                                            format(form.dueDate, "PPP")
                                         ) : (
                                             <span>Pick a due date</span>
                                         )}
@@ -211,9 +218,9 @@ export function UpdatePaymentDialog({
                                 >
                                     <Calendar
                                         mode="single"
-                                        selected={dueDate}
+                                        selected={form.dueDate}
                                         onSelect={(date) => {
-                                            setDueDate(date);
+                                            setForm((prev) => ({ ...prev, dueDate: date }));
                                             setOpenDatePicker(false);
                                         }}
                                         initialFocus

@@ -14,14 +14,16 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
+import moment from "moment";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import moment from "moment";
 
+import { AddPaymentDialog } from "@/components/dialog/AddPaymentDialog";
+import { DeletePaymentDialog } from "@/components/dialog/DeletePaymentDialog";
+import { UpdatePaymentDialog } from "@/components/dialog/UpdatePaymentDialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -29,6 +31,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,17 +54,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { AddPaymentDialog } from "@/components/dialog/AddPaymentDialog";
-import { UpdatePaymentDialog } from "@/components/dialog/UpdatePaymentDialog";
-import { DeletePaymentDialog } from "@/components/dialog/DeletePaymentDialog";
 import { usePagination } from "@/hooks/usePagination";
 import {
+  useBulkDeletePaymentsMutation,
   useCreatePaymentMutation,
+  useDeletePaymentMutation,
   useGetPaymentsQuery,
   useUpdatePaymentMutation,
   useUpdatePaymentStatusMutation,
-  useDeletePaymentMutation,
-  useBulkDeletePaymentsMutation,
 } from "@/redux/api/paymentApi";
 import type { CreatePaymentFormValues, Payment, UpdatePaymentFormValues, UpdatePaymentPayload } from "@/types/payment";
 
@@ -110,7 +110,6 @@ export default function Page() {
 
   const pagination = paymentsResponse?.pagination;
 
-  // Calculate stats from all payments on current page
   const { lentMoney, borrowedMoney, totalLent, totalBorrowed, pendingLent, pendingBorrowed } = useMemo(() => {
     const lent = payments.filter((p) => p.type === "LENT");
     const borrowed = payments.filter((p) => p.type === "BORROWED");
@@ -134,7 +133,6 @@ export default function Page() {
     };
   }, [payments]);
 
-  // Wrapper to clear selections when changing pages
   const handlePageChangeWithClear = useCallback(
     (newPage: number) => {
       handlePageChange(newPage);
@@ -186,6 +184,21 @@ export default function Page() {
     );
   };
 
+  const handleEditPayment = useCallback((payment: Payment) => {
+    setUpdatingPayment(payment);
+    setIsUpdatePaymentOpen(true);
+  }, []);
+
+  const handleDeletePayment = useCallback((payment: Payment) => {
+    setPaymentToDelete(payment);
+    setIsDeleteDialogOpen(true);
+  }, []);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedPayments.length === 0) return;
+    setIsBulkDeleteDialogOpen(true);
+  }, [selectedPayments.length]);
+
   const handleCreate = useCallback(async (values: CreatePaymentFormValues) => {
     const loadingToast = toast.loading("Creating payment...");
 
@@ -212,11 +225,6 @@ export default function Page() {
       toast.dismiss(loadingToast);
     }
   }, [createPayment]);
-
-  const handleEditPayment = useCallback((payment: Payment) => {
-    setUpdatingPayment(payment);
-    setIsUpdatePaymentOpen(true);
-  }, []);
 
   const handleUpdate = useCallback(async (values: UpdatePaymentFormValues) => {
     if (!updatingPayment) return;
@@ -265,11 +273,6 @@ export default function Page() {
     }
   }, [updatePaymentStatus]);
 
-  const handleDeletePayment = useCallback((payment: Payment) => {
-    setPaymentToDelete(payment);
-    setIsDeleteDialogOpen(true);
-  }, []);
-
   const handleConfirmDelete = useCallback(async () => {
     if (!paymentToDelete) return;
 
@@ -293,11 +296,6 @@ export default function Page() {
       toast.dismiss(loadingToast);
     }
   }, [paymentToDelete, deletePayment]);
-
-  const handleBulkDelete = useCallback(() => {
-    if (selectedPayments.length === 0) return;
-    setIsBulkDeleteDialogOpen(true);
-  }, [selectedPayments.length]);
 
   const handleConfirmBulkDelete = useCallback(async () => {
     if (selectedPayments.length === 0) return;
@@ -579,12 +577,12 @@ export default function Page() {
                                   Mark as Paid
                                 </DropdownMenuItem>
                               )}
-                              {payment.status !== "PENDING" && (
+                              {payment.status !== "PENDING" && payment.status !== "PAID" && (
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(payment, "PENDING")}>
                                   Mark as Pending
                                 </DropdownMenuItem>
                               )}
-                              {payment.status !== "OVERDUE" && (
+                              {payment.status !== "OVERDUE" && payment.status !== "PAID" && (
                                 <DropdownMenuItem onClick={() => handleUpdateStatus(payment, "OVERDUE")}>
                                   Mark as Overdue
                                 </DropdownMenuItem>
@@ -679,7 +677,6 @@ export default function Page() {
         onOpenChange={setIsDeleteDialogOpen}
         paymentPersonName={paymentToDelete?.personName}
         paymentAmount={paymentToDelete?.amount}
-        paymentType={paymentToDelete?.type}
         onConfirm={handleConfirmDelete}
       />
       <DeletePaymentDialog
