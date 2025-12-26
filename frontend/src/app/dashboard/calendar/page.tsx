@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,20 +16,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-
 export default function Page() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isDateDialogOpen, setIsDateDialogOpen] = useState(false);
   const defaultAccountId = useDefaultAccount();
 
-  // Fetch upcoming recurring transactions
   const {
     data: upcomingRecurringResponse,
     isLoading: isUpcomingLoading,
   } = useGetUpcomingRecurringTransactionsQuery();
 
-  // Fetch calendar data for the current month
   const {
     data: calendarDataResponse,
     isLoading: isCalendarLoading,
@@ -45,7 +42,6 @@ export default function Page() {
     }
   );
 
-  // Transform API data to calendar events format
   const calendarEvents = useMemo(() => {
     if (!calendarDataResponse?.data?.dailyData) return [];
     return calendarDataResponse.data.dailyData.map((dayData) => ({
@@ -61,7 +57,6 @@ export default function Page() {
     }));
   }, [calendarDataResponse]);
 
-  // Get monthly summary from API
   const monthlySummary = useMemo(() => {
     return calendarDataResponse?.data?.monthlySummary;
   }, [calendarDataResponse]);
@@ -78,22 +73,23 @@ export default function Page() {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "long" });
   };
 
-  const getTransactionsForDate = (day: number) => {
-    const dateStr = moment(currentDate).date(day).format("YYYY-MM-DD");
-    const dayEvents = calendarEvents.find((event) => event.date === dateStr);
-    return dayEvents ? dayEvents.transactions : [];
-  };
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, typeof calendarEvents[0]>();
+    calendarEvents.forEach((event) => {
+      map.set(event.date, event);
+    });
+    return map;
+  }, [calendarEvents]);
 
-  const getDayTotal = (day: number) => {
+  const getDayData = (day: number) => {
     const dateStr = moment(currentDate).date(day).format("YYYY-MM-DD");
-    const dayEvents = calendarEvents.find((event) => event.date === dateStr);
-    return dayEvents ? dayEvents.sum : 0;
-  };
-
-  const getDayCount = (day: number) => {
-    const dateStr = moment(currentDate).date(day).format("YYYY-MM-DD");
-    const dayEvents = calendarEvents.find((event) => event.date === dateStr);
-    return dayEvents ? dayEvents.count : 0;
+    const dayEvents = eventsByDate.get(dateStr);
+    return {
+      transactions: dayEvents?.transactions || [],
+      sum: dayEvents?.sum || 0,
+      count: dayEvents?.count || 0,
+      dateStr,
+    };
   };
 
   const navigateMonth = (direction: "prev" | "next") => {
@@ -112,17 +108,15 @@ export default function Page() {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
     const days = [];
+    const today = new Date();
 
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="p-2"></div>);
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const transactions = getTransactionsForDate(day);
-      const dayTotal = getDayTotal(day);
-      const dayCount = getDayCount(day);
+      const { transactions, sum: dayTotal, count: dayCount, dateStr } = getDayData(day);
       const hasTransactions = dayCount > 0;
-      const today = new Date();
       const isToday =
         day === today.getDate() &&
         currentDate.getMonth() === today.getMonth() &&
@@ -132,7 +126,6 @@ export default function Page() {
         <div
           key={day}
           onClick={() => {
-            const dateStr = moment(currentDate).date(day).format("YYYY-MM-DD");
             setSelectedDate(dateStr);
             setIsDateDialogOpen(true);
           }}
@@ -159,7 +152,7 @@ export default function Page() {
 
           {hasTransactions && (
             <div className="space-y-1">
-              {transactions.slice(0, 2).map((transaction) => (
+              {transactions.slice(0, 2).map((transaction: { id: string; description: string; amount: number; type: string }) => (
                 <div
                   key={transaction.id}
                   className={`text-xs p-1 rounded truncate ${transaction.type === "income"
@@ -179,7 +172,7 @@ export default function Page() {
                 <div
                   className={`text-xs font-medium ${dayTotal > 0 ? "text-[#4ade80]" : "text-[#f87171]"}`}
                 >
-                  {dayTotal > 0 ? "+" : ""}₹{Math.abs(dayTotal).toFixed(2)}
+                  ₹{Math.abs(dayTotal).toFixed(2)}
                 </div>
               )}
             </div>
@@ -194,25 +187,11 @@ export default function Page() {
   return (
     <>
       <div className="space-y-4 md:space-y-6">
-        <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Calendar</h1>
-            <p className="text-muted-foreground">
-              Manage and track all your financial transactions
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-              onClick={() => {
-                // TODO: Implement transaction dialog
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Transaction
-            </Button>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">Calendar</h1>
+          <p className="text-muted-foreground">
+            Manage and track all your financial transactions
+          </p>
         </div>
 
         <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
@@ -317,7 +296,7 @@ export default function Page() {
                             : "text-[#4ade80]"
                             }`}
                         >
-                          {transaction.type === "EXPENSE" ? "-" : "+"}₹{transaction.amount.toFixed(2)}
+                          ₹{transaction.amount.toFixed(2)}
                         </div>
                       </div>
                     </div>

@@ -131,7 +131,6 @@ export interface GetTransactionsApiResponse extends GetTransactionsResponse {
     };
 }
 
-// Calendar API Types
 export interface CalendarDailyData {
     date: string;
     count: number;
@@ -172,14 +171,24 @@ export interface CalendarTransactionsQueryParams {
     accountId?: string;
 }
 
+export interface DateTransactionsSummary {
+    totalIncome: number;
+    totalExpense: number;
+    count: number;
+    netIncome: number;
+}
+
 export interface DateTransactionsResponse {
     success: boolean;
     message: string;
-    data: Transaction[];
+    data: {
+        transactions: Transaction[];
+        summary: DateTransactionsSummary;
+    };
 }
 
 export interface DateTransactionsQueryParams {
-    date: string; // YYYY-MM-DD
+    date: string;
     accountId?: string;
 }
 
@@ -207,7 +216,6 @@ export interface UpcomingRecurringTransactionsResponse {
     message: string;
     data: UpcomingRecurringTransaction[];
 }
-
 export interface RecurringTransactionTemplate {
     id: string;
     userId: string;
@@ -243,7 +251,6 @@ export interface UpdateRecurringResponse {
     data: RecurringTransactionTemplate;
 }
 
-// Form state interfaces for dialogs
 export interface FormState {
     type: TransactionType;
     amount: string;

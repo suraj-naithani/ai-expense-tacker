@@ -17,7 +17,7 @@ import { useState, useEffect } from "react";
 interface CalendarDateTransactionsDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    date: string; // YYYY-MM-DD format
+    date: string;
 }
 
 export function CalendarDateTransactionsDialog({
@@ -43,37 +43,23 @@ export function CalendarDateTransactionsDialog({
         }
     );
 
-    // Track when data fetch completes for the current date
     useEffect(() => {
         if (!isFetching && dateTransactionsResponse && date) {
             setLastFetchedDate(date);
         }
     }, [isFetching, dateTransactionsResponse, date]);
 
-    // Reset last fetched date when dialog closes or date changes
     useEffect(() => {
         if (!open) {
             setLastFetchedDate(null);
         }
     }, [open]);
 
-    // Only show data if we're not fetching AND we have fetched data for the current date
     const isDateMismatch = date !== lastFetchedDate;
     const shouldShowLoading = isLoading || isFetching || isDateMismatch;
-    const transactions: Transaction[] = shouldShowLoading ? [] : (dateTransactionsResponse?.data || []);
+    const transactions: Transaction[] = shouldShowLoading ? [] : (dateTransactionsResponse?.data?.transactions || []);
+    const summary = shouldShowLoading ? null : (dateTransactionsResponse?.data?.summary || null);
     const formattedDate = moment(date).format("MMMM DD, YYYY");
-
-    // Calculate summary
-    const summary = {
-        totalIncome: transactions
-            .filter((t) => t.type === "INCOME")
-            .reduce((sum, t) => sum + t.amount, 0),
-        totalExpense: transactions
-            .filter((t) => t.type === "EXPENSE")
-            .reduce((sum, t) => sum + t.amount, 0),
-        count: transactions.length,
-    };
-    const netIncome = summary.totalIncome - summary.totalExpense;
 
     return (
         <>
@@ -85,8 +71,8 @@ export function CalendarDateTransactionsDialog({
                     <DialogHeader>
                         <DialogTitle className="text-xl">Transactions for {formattedDate}</DialogTitle>
                         <DialogDescription>
-                            {transactions.length > 0
-                                ? `${transactions.length} transaction${transactions.length > 1 ? "s" : ""} found`
+                            {summary
+                                ? `${summary.count} transaction${summary.count > 1 ? "s" : ""} found`
                                 : "No transactions for this date"}
                         </DialogDescription>
                     </DialogHeader>
@@ -95,33 +81,34 @@ export function CalendarDateTransactionsDialog({
                         <div className="text-center py-8 text-muted-foreground">
                             Loading transactions...
                         </div>
-                    ) : transactions.length === 0 ? (
+                    ) : !summary || summary.count === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             No transactions found for this date
                         </div>
                     ) : (
                         <div className="flex flex-col flex-1 min-h-0 space-y-4">
-                            {/* Summary - Fixed */}
-                            <div className="flex items-center justify-between px-2 py-3 bg-[var(--card-hover)] rounded-lg flex-shrink-0">
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Total Income</div>
-                                    <div className="text-sm font-semibold text-[#4ade80]">
-                                        ₹{summary.totalIncome.toFixed(2)}
+                            {summary && (
+                                <div className="flex items-center justify-between px-2 py-3 bg-[var(--card-hover)] rounded-lg flex-shrink-0">
+                                    <div>
+                                        <div className="text-xs text-muted-foreground">Total Income</div>
+                                        <div className="text-sm font-semibold text-[#4ade80]">
+                                            ₹{summary.totalIncome.toFixed(2)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-muted-foreground">Total Expenses</div>
+                                        <div className="text-sm font-semibold text-[#f87171]">
+                                            ₹{summary.totalExpense.toFixed(2)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-muted-foreground">Net Amount</div>
+                                        <div className={`text-sm font-semibold ${summary.netIncome >= 0 ? "text-[#60a5fa]" : "text-[#f87171]"}`}>
+                                            ₹{Math.abs(summary.netIncome).toFixed(2)}
+                                        </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Total Expenses</div>
-                                    <div className="text-sm font-semibold text-[#f87171]">
-                                        ₹{summary.totalExpense.toFixed(2)}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="text-xs text-muted-foreground">Net Amount</div>
-                                    <div className={`text-sm font-semibold ${netIncome >= 0 ? "text-[#60a5fa]" : "text-[#f87171]"}`}>
-                                        ₹{Math.abs(netIncome).toFixed(2)}
-                                    </div>
-                                </div>
-                            </div>
+                            )}
 
                             {/* Transactions List - Scrollable */}
                             <div className="flex-1 overflow-y-auto scrollbar-hide [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] min-h-0">
@@ -154,7 +141,7 @@ export function CalendarDateTransactionsDialog({
                                                         : "text-[#f87171]"
                                                         }`}
                                                 >
-                                                    {transaction.type === "INCOME" ? "+" : "-"}₹{transaction.amount.toFixed(2)}
+                                                    ₹{transaction.amount.toFixed(2)}
                                                 </div>
                                             </div>
                                         </div>

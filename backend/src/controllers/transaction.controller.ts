@@ -260,7 +260,6 @@ export const bulkDeleteTransactions = async (req: Request, res: Response) => {
             });
         }
 
-        // Directly delete transactions that belong to the user with the given ids
         const result = await prisma.transaction.deleteMany({
             where: {
                 id: { in: ids },
@@ -268,7 +267,6 @@ export const bulkDeleteTransactions = async (req: Request, res: Response) => {
             },
         });
 
-        // If nothing was deleted, it means none of the IDs belonged to the user
         if (result.count === 0) {
             return res.status(404).json({
                 success: false,
@@ -302,12 +300,10 @@ export const getCalendarTransactions = async (req: Request, res: Response) => {
             accountId?: string;
         };
 
-        // Get current date if not provided
         const currentMoment = moment();
         const yearNum = year ? parseInt(year, 10) : currentMoment.year();
         const monthNum = month ? parseInt(month, 10) : currentMoment.month() + 1;
 
-        // Get start and end dates for the month using moment
         const startDate = moment({ year: yearNum, month: monthNum - 1, day: 1 }).startOf("day").toDate();
         const endDate = moment({ year: yearNum, month: monthNum - 1, day: 1 }).endOf("month").toDate();
 
@@ -322,7 +318,6 @@ export const getCalendarTransactions = async (req: Request, res: Response) => {
 
         if (accountId) where.accountId = accountId;
 
-        // Fetch all transactions for the month
         const transactions = await prisma.transaction.findMany({
             where,
             orderBy: { createdAt: "desc" },
@@ -335,7 +330,6 @@ export const getCalendarTransactions = async (req: Request, res: Response) => {
             },
         });
 
-        // Group transactions by date (order is preserved since transactions are sorted by createdAt desc)
         const groupedByDate: Record<string, typeof transactions> = {};
         transactions.forEach((transaction) => {
             const dateKey = moment(transaction.createdAt).format("YYYY-MM-DD");
@@ -345,7 +339,6 @@ export const getCalendarTransactions = async (req: Request, res: Response) => {
             groupedByDate[dateKey].push(transaction);
         });
 
-        // Calculate daily data
         const dailyData: Array<{
             date: string;
             count: number;
@@ -363,20 +356,17 @@ export const getCalendarTransactions = async (req: Request, res: Response) => {
         let incomeCount = 0;
 
         Object.entries(groupedByDate).forEach(([date, dayTransactions]) => {
-            // Get 2 latest transactions (already sorted by createdAt desc, so first 2 are latest)
             const latestTransactions = dayTransactions.slice(0, 2).map((t) => ({
                 description: t.description,
                 amount: t.amount,
                 type: t.type,
             }));
 
-            // Calculate daily sum (net: income - expenses) and count
             const daySum = dayTransactions.reduce((sum, t) => {
                 return sum + (t.type === "INCOME" ? t.amount : -t.amount);
             }, 0);
             const dayCount = dayTransactions.length;
 
-            // Calculate monthly totals
             dayTransactions.forEach((t) => {
                 if (t.type === "INCOME") {
                     totalIncome += t.amount;
@@ -395,13 +385,10 @@ export const getCalendarTransactions = async (req: Request, res: Response) => {
             });
         });
 
-        // Sort daily data by date
         dailyData.sort((a, b) => a.date.localeCompare(b.date));
 
-        // Calculate monthly summary
         const daysWithTransactions = Object.keys(groupedByDate).length;
         const netIncome = totalIncome - totalExpense;
-        // Calculate average daily spending (only for days with transactions, rounded to 2 decimals)
         const averageDailySpending = daysWithTransactions > 0
             ? Math.round((totalExpense / daysWithTransactions) * 100) / 100
             : 0;
@@ -451,7 +438,6 @@ export const getDateTransactions = async (req: Request, res: Response) => {
             });
         }
 
-        // Parse date and create start/end of day using moment
         const dateMoment = moment(date, "YYYY-MM-DD");
         if (!dateMoment.isValid()) {
             return res.status(400).json({
@@ -501,10 +487,27 @@ export const getDateTransactions = async (req: Request, res: Response) => {
             },
         });
 
+        const summary = {
+            totalIncome: transactions
+                .filter((t) => t.type === "INCOME")
+                .reduce((sum, t) => sum + t.amount, 0),
+            totalExpense: transactions
+                .filter((t) => t.type === "EXPENSE")
+                .reduce((sum, t) => sum + t.amount, 0),
+            count: transactions.length,
+        };
+        const netIncome = summary.totalIncome - summary.totalExpense;
+
         return res.status(200).json({
             success: true,
             message: "Date transactions fetched successfully",
-            data: transactions,
+            data: {
+                transactions,
+                summary: {
+                    ...summary,
+                    netIncome,
+                },
+            },
         });
     } catch (error) {
         console.error("Get date transactions error:", error);
