@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import moment from "moment";
 import { prisma } from "../utils/connection.js";
 import { CreateTransactionRequest, TransactionFilters, UpdateTransactionRequest } from "../types/transaction.js";
 import { calculateNextExecutionDate } from "../utils/dateCalculator.js";
@@ -259,7 +260,6 @@ export const bulkDeleteTransactions = async (req: Request, res: Response) => {
             });
         }
 
-        // Directly delete transactions that belong to the user with the given ids
         const result = await prisma.transaction.deleteMany({
             where: {
                 id: { in: ids },
@@ -267,7 +267,6 @@ export const bulkDeleteTransactions = async (req: Request, res: Response) => {
             },
         });
 
-        // If nothing was deleted, it means none of the IDs belonged to the user
         if (result.count === 0) {
             return res.status(404).json({
                 success: false,
@@ -287,6 +286,291 @@ export const bulkDeleteTransactions = async (req: Request, res: Response) => {
         return res.status(500).json({
             success: false,
             message: "Failed to delete transactions"
+        });
+    }
+};
+
+export const getCalendarTransactions = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id as string;
+
+    try {
+        const { year, month, accountId } = req.query as {
+            year?: string;
+            month?: string;
+            accountId?: string;
+        };
+
+        const currentMoment = moment();
+        const yearNum = year ? parseInt(year, 10) : currentMoment.year();
+        const monthNum = month ? parseInt(month, 10) : currentMoment.month() + 1;
+
+        const startDate = moment({ year: yearNum, month: monthNum - 1, day: 1 }).startOf("day").toDate();
+        const endDate = moment({ year: yearNum, month: monthNum - 1, day: 1 }).endOf("month").toDate();
+
+        const where: any = {
+            userId,
+            isRecurring: false,
+            createdAt: {
+                gte: startDate,
+                lte: endDate,
+            },
+        };
+
+        if (accountId) where.accountId = accountId;
+
+        const transactions = await prisma.transaction.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                amount: true,
+                type: true,
+                description: true,
+                createdAt: true,
+            },
+        });
+
+        const groupedByDate: Record<string, typeof transactions> = {};
+        transactions.forEach((transaction) => {
+            const dateKey = moment(transaction.createdAt).format("YYYY-MM-DD");
+            if (!groupedByDate[dateKey]) {
+                groupedByDate[dateKey] = [];
+            }
+            groupedByDate[dateKey].push(transaction);
+        });
+
+        const dailyData: Array<{
+            date: string;
+            count: number;
+            sum: number;
+            latestTransactions: Array<{
+                description: string | null;
+                amount: number;
+                type: string;
+            }>;
+        }> = [];
+
+        let totalExpense = 0;
+        let totalIncome = 0;
+        let expenseCount = 0;
+        let incomeCount = 0;
+
+        Object.entries(groupedByDate).forEach(([date, dayTransactions]) => {
+            const latestTransactions = dayTransactions.slice(0, 2).map((t) => ({
+                description: t.description,
+                amount: t.amount,
+                type: t.type,
+            }));
+
+            const daySum = dayTransactions.reduce((sum, t) => {
+                return sum + (t.type === "INCOME" ? t.amount : -t.amount);
+            }, 0);
+            const dayCount = dayTransactions.length;
+
+            dayTransactions.forEach((t) => {
+                if (t.type === "INCOME") {
+                    totalIncome += t.amount;
+                    incomeCount++;
+                } else {
+                    totalExpense += t.amount;
+                    expenseCount++;
+                }
+            });
+
+            dailyData.push({
+                date,
+                count: dayCount,
+                sum: daySum,
+                latestTransactions,
+            });
+        });
+
+        dailyData.sort((a, b) => a.date.localeCompare(b.date));
+
+        const daysWithTransactions = Object.keys(groupedByDate).length;
+        const netIncome = totalIncome - totalExpense;
+        const averageDailySpending = daysWithTransactions > 0
+            ? Math.round((totalExpense / daysWithTransactions) * 100) / 100
+            : 0;
+
+        return res.status(200).json({
+            success: true,
+            message: "Calendar transactions fetched successfully",
+            data: {
+                dailyData,
+                monthlySummary: {
+                    totalIncome: {
+                        amount: totalIncome,
+                        count: incomeCount,
+                    },
+                    totalExpenses: {
+                        amount: totalExpense,
+                        count: expenseCount,
+                    },
+                    netIncome,
+                    daysWithTransactions,
+                    averageDailySpending,
+                },
+            },
+        });
+    } catch (error) {
+        console.error("Get calendar transactions error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch calendar transactions",
+        });
+    }
+};
+
+export const getDateTransactions = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id as string;
+
+    try {
+        const { date, accountId } = req.query as {
+            date?: string;
+            accountId?: string;
+        };
+
+        if (!date) {
+            return res.status(400).json({
+                success: false,
+                message: "Date parameter is required (format: YYYY-MM-DD)",
+            });
+        }
+
+        const dateMoment = moment(date, "YYYY-MM-DD");
+        if (!dateMoment.isValid()) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid date format. Expected YYYY-MM-DD",
+            });
+        }
+        const startDate = dateMoment.startOf("day").toDate();
+        const endDate = dateMoment.endOf("day").toDate();
+
+        const where: any = {
+            userId,
+            isRecurring: false,
+            createdAt: {
+                gte: startDate,
+                lte: endDate,
+            },
+        };
+
+        if (accountId) where.accountId = accountId;
+
+        const transactions = await prisma.transaction.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            select: {
+                id: true,
+                userId: true,
+                amount: true,
+                type: true,
+                description: true,
+                createdAt: true,
+                updatedAt: true,
+                account: {
+                    select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                    },
+                },
+                category: {
+                    select: {
+                        id: true,
+                        name: true,
+                        icon: true,
+                    },
+                },
+            },
+        });
+
+        const summary = {
+            totalIncome: transactions
+                .filter((t) => t.type === "INCOME")
+                .reduce((sum, t) => sum + t.amount, 0),
+            totalExpense: transactions
+                .filter((t) => t.type === "EXPENSE")
+                .reduce((sum, t) => sum + t.amount, 0),
+            count: transactions.length,
+        };
+        const netIncome = summary.totalIncome - summary.totalExpense;
+
+        return res.status(200).json({
+            success: true,
+            message: "Date transactions fetched successfully",
+            data: {
+                transactions,
+                summary: {
+                    ...summary,
+                    netIncome,
+                },
+            },
+        });
+    } catch (error) {
+        console.error("Get date transactions error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch date transactions",
+        });
+    }
+};
+
+export const getUpcomingRecurringTransactions = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id as string;
+
+    try {
+        const now = new Date();
+
+        const upcomingRecurring = await prisma.transaction.findMany({
+            where: {
+                userId,
+                isRecurring: true,
+                isActive: true,
+                nextExecutionDate: {
+                    gte: now,
+                },
+            },
+            orderBy: {
+                nextExecutionDate: "asc",
+            },
+            take: 5,
+            select: {
+                id: true,
+                amount: true,
+                type: true,
+                description: true,
+                nextExecutionDate: true,
+                recurringInterval: true,
+                account: {
+                    select: {
+                        id: true,
+                        name: true,
+                        type: true,
+                    },
+                },
+                category: {
+                    select: {
+                        id: true,
+                        name: true,
+                        icon: true,
+                    },
+                },
+            },
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Upcoming recurring transactions fetched successfully",
+            data: upcomingRecurring,
+        });
+    } catch (error) {
+        console.error("Get upcoming recurring transactions error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch upcoming recurring transactions",
         });
     }
 };
