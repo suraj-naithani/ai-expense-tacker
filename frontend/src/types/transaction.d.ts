@@ -131,6 +131,83 @@ export interface GetTransactionsApiResponse extends GetTransactionsResponse {
     };
 }
 
+// Calendar API Types
+export interface CalendarDailyData {
+    date: string;
+    count: number;
+    sum: number;
+    latestTransactions: Array<{
+        description: string | null;
+        amount: number;
+        type: TransactionType;
+    }>;
+}
+
+export interface CalendarMonthlySummary {
+    totalIncome: {
+        amount: number;
+        count: number;
+    };
+    totalExpenses: {
+        amount: number;
+        count: number;
+    };
+    netIncome: number;
+    daysWithTransactions: number;
+    averageDailySpending: number;
+}
+
+export interface CalendarTransactionsResponse {
+    success: boolean;
+    message: string;
+    data: {
+        dailyData: CalendarDailyData[];
+        monthlySummary: CalendarMonthlySummary;
+    };
+}
+
+export interface CalendarTransactionsQueryParams {
+    year?: number;
+    month?: number;
+    accountId?: string;
+}
+
+export interface DateTransactionsResponse {
+    success: boolean;
+    message: string;
+    data: Transaction[];
+}
+
+export interface DateTransactionsQueryParams {
+    date: string; // YYYY-MM-DD
+    accountId?: string;
+}
+
+export interface UpcomingRecurringTransaction {
+    id: string;
+    amount: number;
+    type: TransactionType;
+    description: string | null;
+    nextExecutionDate: string;
+    recurringInterval: RecurringInterval | null;
+    account: {
+        id: string;
+        name: string;
+        type: string;
+    };
+    category: {
+        id: string;
+        name: string;
+        icon: string;
+    } | null;
+}
+
+export interface UpcomingRecurringTransactionsResponse {
+    success: boolean;
+    message: string;
+    data: UpcomingRecurringTransaction[];
+}
+
 export interface RecurringTransactionTemplate {
     id: string;
     userId: string;

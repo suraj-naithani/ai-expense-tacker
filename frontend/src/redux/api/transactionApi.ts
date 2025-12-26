@@ -10,6 +10,11 @@ import {
     ToggleRecurringResponse,
     UpdateTransactionPayload,
     UpdateTransactionResponse,
+    CalendarTransactionsResponse,
+    CalendarTransactionsQueryParams,
+    DateTransactionsResponse,
+    DateTransactionsQueryParams,
+    UpcomingRecurringTransactionsResponse,
 } from "@/types/transaction";
 
 export const transactionApi = createApi({
@@ -71,6 +76,38 @@ export const transactionApi = createApi({
             }),
             invalidatesTags: ["Transaction", "RecurringTransaction"],
         }),
+
+        getCalendarTransactions: builder.query<CalendarTransactionsResponse, CalendarTransactionsQueryParams>({
+            query: (params) => ({
+                url: "calendar",
+                params: {
+                    ...(params.year && { year: params.year.toString() }),
+                    ...(params.month && { month: params.month.toString() }),
+                    ...(params.accountId && { accountId: params.accountId }),
+                },
+            }),
+            providesTags: ["Transaction"],
+        }),
+
+        getDateTransactions: builder.query<DateTransactionsResponse, DateTransactionsQueryParams>({
+            query: (params) => ({
+                url: "date",
+                params: {
+                    date: params.date,
+                    ...(params.accountId && { accountId: params.accountId }),
+                },
+            }),
+            providesTags: (result, error, arg) => [
+                { type: "Transaction", id: `DATE-${arg.date}` },
+            ],
+        }),
+
+        getUpcomingRecurringTransactions: builder.query<UpcomingRecurringTransactionsResponse, void>({
+            query: () => ({
+                url: "upcoming-recurring",
+            }),
+            providesTags: ["RecurringTransaction"],
+        }),
     }),
 });
 
@@ -81,4 +118,7 @@ export const {
     useToggleRecurringTransactionMutation,
     useDeleteTransactionMutation,
     useBulkDeleteTransactionsMutation,
+    useGetCalendarTransactionsQuery,
+    useGetDateTransactionsQuery,
+    useGetUpcomingRecurringTransactionsQuery,
 } = transactionApi;

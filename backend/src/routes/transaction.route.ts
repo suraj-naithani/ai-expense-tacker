@@ -6,6 +6,9 @@ import {
     getTransactions,
     toggleRecurring,
     updateTransaction,
+    getCalendarTransactions,
+    getDateTransactions,
+    getUpcomingRecurringTransactions,
 } from "../controllers/transaction.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { validate, validateParams } from "../middleware/validate.middleware.js";
@@ -32,5 +35,11 @@ app.patch("/toggle-recurring/:id", validateParams(toggleRecurringParamSchema), t
 app.delete("/delete-transaction/:id", validateParams(deleteTransactionParamSchema), deleteTransaction);
 
 app.delete("/bulk-delete-transactions", validate(bulkDeleteTransactionsSchema), bulkDeleteTransactions);
+
+app.get("/calendar", getCalendarTransactions);
+
+app.get("/date", getDateTransactions);
+
+app.get("/upcoming-recurring", getUpcomingRecurringTransactions);
 
 export default app;
