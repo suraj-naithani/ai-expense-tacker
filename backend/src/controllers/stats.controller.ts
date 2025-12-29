@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
+import { prisma } from "../utils/connection.js";
 import { calculateDateRange } from "../utils/statsHelper.js";
-import { getTransactionStatsWithComparison } from "../services/stats.service.js";
-import { TransactionStatsQueryParams } from "../types/stats.js";
+import { getTransactionStatsWithComparison, calculatePaymentStats } from "../services/stats.service.js";
+import { TransactionStatsQueryParams, PaymentStatsQueryParams } from "../types/stats.js";
 
 // Transaction Stats
 export const getTransactionStats = async (req: Request, res: Response) => {
@@ -88,13 +89,26 @@ export const getPaymentStats = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
     try {
-        // TODO: Implement payment stats logic
+        const { accountId } = req.query as PaymentStatsQueryParams;
+
+        // Note: Payment model doesn't have accountId field, but we accept it for API consistency
+        // accountId is required for consistency with transaction stats API
+        if (!accountId) {
+            return res.status(400).json({
+                success: false,
+                message: "accountId is required",
+            });
+        }
+
+        const stats = await calculatePaymentStats(userId);
+
         res.status(200).json({
             success: true,
             message: "Payment stats retrieved successfully",
-            data: {},
+            data: stats,
         });
     } catch (error: any) {
+        console.error("Get payment stats error:", error);
         res.status(500).json({
             success: false,
             message: error.message || "Failed to fetch payment stats",

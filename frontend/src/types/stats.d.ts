@@ -43,3 +43,20 @@ export interface TransactionStatsResponse {
     data: TransactionStatsData;
 }
 
+export interface PaymentStatsQueryParams {
+    accountId: string;
+}
+
+export interface PaymentStatsData {
+    unpaidLent: number;
+    unpaidBorrowed: number;
+    activePaymentsCount: number;
+    netBalance: number;
+}
+
+export interface PaymentStatsResponse {
+    success: boolean;
+    message: string;
+    data: PaymentStatsData;
+}
+

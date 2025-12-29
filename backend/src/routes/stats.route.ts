@@ -11,7 +11,6 @@ const app = express.Router();
 
 app.use(authMiddleware);
 
-// Transaction stats route
 app.get("/transaction", getTransactionStats);
 
 // Dashboard stats route

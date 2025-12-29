@@ -11,6 +11,7 @@ import {
     UpdatePaymentResponse,
     UpdatePaymentStatusResponse,
 } from "@/types/payment";
+import { statsApi } from "./statsApi";
 
 export const paymentApi = createApi({
     reducerPath: "paymentApi",
@@ -36,6 +37,14 @@ export const paymentApi = createApi({
                 body,
             }),
             invalidatesTags: ["Payment"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         updatePayment: builder.mutation<UpdatePaymentResponse, { id: string; body: UpdatePaymentPayload }>({
@@ -45,6 +54,14 @@ export const paymentApi = createApi({
                 body,
             }),
             invalidatesTags: ["Payment"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         updatePaymentStatus: builder.mutation<UpdatePaymentStatusResponse, { id: string; status: "PENDING" | "PAID" | "OVERDUE" }>({
@@ -54,6 +71,14 @@ export const paymentApi = createApi({
                 body: { status },
             }),
             invalidatesTags: ["Payment"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         deletePayment: builder.mutation<DeletePaymentResponse, string>({
@@ -62,6 +87,14 @@ export const paymentApi = createApi({
                 method: "DELETE",
             }),
             invalidatesTags: ["Payment"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         bulkDeletePayments: builder.mutation<BulkDeletePaymentResponse, { ids: string[] }>({
@@ -71,6 +104,14 @@ export const paymentApi = createApi({
                 body,
             }),
             invalidatesTags: ["Payment"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
     }),
 });

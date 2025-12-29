@@ -51,3 +51,14 @@ export interface TransactionStatsWithComparison {
     };
 }
 
+export interface PaymentStatsQueryParams {
+    accountId?: string;
+}
+
+export interface PaymentStats {
+    unpaidLent: number;
+    unpaidBorrowed: number;
+    activePaymentsCount: number;
+    netBalance: number;
+}
+

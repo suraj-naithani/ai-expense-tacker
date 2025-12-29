@@ -10,8 +10,8 @@ import {
   HandCoins,
   MoreHorizontal,
   Plus,
+  Target,
   Trash2,
-  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import moment from "moment";
@@ -54,6 +54,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 import { usePagination } from "@/hooks/usePagination";
 import {
   useBulkDeletePaymentsMutation,
@@ -63,6 +64,7 @@ import {
   useUpdatePaymentMutation,
   useUpdatePaymentStatusMutation,
 } from "@/redux/api/paymentApi";
+import { useGetPaymentStatsQuery } from "@/redux/api/statsApi";
 import type { CreatePaymentFormValues, Payment, UpdatePaymentFormValues, UpdatePaymentPayload } from "@/types/payment";
 
 export default function Page() {
@@ -74,6 +76,8 @@ export default function Page() {
   const [updatingPayment, setUpdatingPayment] = useState<Payment | null>(null);
   const [paymentToDelete, setPaymentToDelete] = useState<Payment | null>(null);
   const [modalType] = useState<"lent" | "borrowed">("lent");
+
+  const defaultAccountId = useDefaultAccount();
 
   const {
     currentPage,
@@ -103,6 +107,20 @@ export default function Page() {
   const [deletePayment] = useDeletePaymentMutation();
   const [bulkDeletePayments] = useBulkDeletePaymentsMutation();
 
+  // Get payment stats
+  const {
+    data: statsResponse,
+    isLoading: isStatsLoading,
+  } = useGetPaymentStatsQuery(
+    {
+      accountId: defaultAccountId || "",
+    },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
   const payments: Payment[] = useMemo(
     () => paymentsResponse?.data ?? [],
     [paymentsResponse?.data]
@@ -110,28 +128,12 @@ export default function Page() {
 
   const pagination = paymentsResponse?.pagination;
 
-  const { lentMoney, borrowedMoney, totalLent, totalBorrowed, pendingLent, pendingBorrowed } = useMemo(() => {
-    const lent = payments.filter((p) => p.type === "LENT");
-    const borrowed = payments.filter((p) => p.type === "BORROWED");
-
-    const totalLentAmount = lent.reduce((sum, item) => sum + item.amount, 0);
-    const totalBorrowedAmount = borrowed.reduce((sum, item) => sum + item.amount, 0);
-    const pendingLentAmount = lent
-      .filter((item) => item.status === "PENDING")
-      .reduce((sum, item) => sum + item.amount, 0);
-    const pendingBorrowedAmount = borrowed
-      .filter((item) => item.status === "PENDING")
-      .reduce((sum, item) => sum + item.amount, 0);
-
-    return {
-      lentMoney: lent,
-      borrowedMoney: borrowed,
-      totalLent: totalLentAmount,
-      totalBorrowed: totalBorrowedAmount,
-      pendingLent: pendingLentAmount,
-      pendingBorrowed: pendingBorrowedAmount,
-    };
-  }, [payments]);
+  // Get stats from API
+  const statsData = statsResponse?.data;
+  const unpaidLent = statsData?.unpaidLent ?? 0;
+  const unpaidBorrowed = statsData?.unpaidBorrowed ?? 0;
+  const activePaymentsCount = statsData?.activePaymentsCount ?? 0;
+  const netBalance = statsData?.netBalance ?? 0;
 
   const handlePageChangeWithClear = useCallback(
     (newPage: number) => {
@@ -355,64 +357,92 @@ export default function Page() {
           <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Lent
+                Unpaid Lent
               </CardTitle>
               <HandCoins className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
-                ₹{totalLent.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {lentMoney.length} {lentMoney.length === 1 ? "person" : "people"}
-              </p>
+              {isStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold text-[#f59e0b]">
+                    ₹{unpaidLent.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Money not yet received
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Borrowed
+                Unpaid Borrowed
               </CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#f87171]">
-                ₹{totalBorrowed.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {borrowedMoney.length} {borrowedMoney.length === 1 ? "person" : "people"}
-              </p>
+              {isStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold text-[#a78bfa]">
+                    ₹{unpaidBorrowed.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Money not yet paid back
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
           <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending to Receive
+                Active Payments
+              </CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold">
+                    {activePaymentsCount}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Unpaid transactions
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Net Balance
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#f59e0b]">
-                ₹{pendingLent.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Money to collect</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Pending to Pay
-              </CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#a78bfa]">
-                ₹{pendingBorrowed.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">Money to pay back</p>
+              {isStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className={`text-xl md:text-2xl font-bold ${netBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}`}>
+                    ₹{netBalance.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {netBalance >= 0 ? "You're a net lender" : "You're a net borrower"}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

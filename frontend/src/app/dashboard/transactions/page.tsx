@@ -24,13 +24,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 import { usePagination } from "@/hooks/usePagination";
 import {
@@ -47,7 +40,6 @@ import type {
   UpdateTransactionFormValues,
   UpdateTransactionPayload,
 } from "@/types/transaction";
-import type { TimeRange } from "@/types/stats";
 
 export default function Page() {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
@@ -63,7 +55,6 @@ export default function Page() {
   const [isBulkDeleteRecurringDialogOpen, setIsBulkDeleteRecurringDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
-  const [timeRange, setTimeRange] = useState<TimeRange>("monthly");
 
   const defaultAccountId = useDefaultAccount();
 
@@ -119,13 +110,13 @@ export default function Page() {
   const [bulkDeleteTransactions] = useBulkDeleteTransactionsMutation();
   const [updateTransaction] = useUpdateTransactionMutation();
 
-  // Get transaction stats
+  // Get transaction stats (always monthly)
   const {
     data: statsResponse,
     isLoading: isStatsLoading,
   } = useGetTransactionStatsQuery(
     {
-      timeRange,
+      timeRange: "monthly",
       accountId: defaultAccountId || "",
     },
     {
@@ -390,17 +381,6 @@ export default function Page() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRange)}>
-              <SelectTrigger className="w-[140px] border-[var(--border)] bg-[var(--card)]">
-                <SelectValue placeholder="Time Range" />
-              </SelectTrigger>
-              <SelectContent className="border-[var(--border)] bg-[var(--card)]">
-                <SelectItem value="monthly">Monthly</SelectItem>
-                <SelectItem value="3months">3 Months</SelectItem>
-                <SelectItem value="6months">6 Months</SelectItem>
-                <SelectItem value="yearly">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
             <Button
               size="sm"
               className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
@@ -447,7 +427,7 @@ export default function Page() {
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Transactions
+                Monthly Transactions
               </CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -477,7 +457,7 @@ export default function Page() {
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Income
+                Monthly Income
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -507,7 +487,7 @@ export default function Page() {
           <Card className="border-[var(--border)] bg-[var(--card)]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Expenses
+                Monthly Expenses
               </CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>

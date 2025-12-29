@@ -1,6 +1,8 @@
 import { prisma } from "../utils/connection.js";
+import { Prisma } from "@prisma/client";
 import { calculatePreviousDateRange, calculatePercentageChange } from "../utils/statsHelper.js";
-import { DateRange, TransactionStats, TransactionStatsWithComparison } from "../types/stats.js";
+import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats } from "../types/stats.js";
+import { PaymentStatus } from "../types/payment.js";
 
 export async function calculateTransactionStats(
     userId: string,
@@ -112,6 +114,53 @@ export async function getTransactionStatsWithComparison(
                 end: previousRange.endDate.toISOString(),
             },
         },
+    };
+}
+
+export async function calculatePaymentStats(
+    userId: string
+): Promise<PaymentStats> {
+    const whereClause: Prisma.PaymentWhereInput = {
+        userId,
+        status: {
+            in: ["PENDING", "OVERDUE"] as PaymentStatus[],
+        },
+    };
+
+    const [unpaidLentStats, unpaidBorrowedStats, activeCount] = await Promise.all([
+        prisma.payment.aggregate({
+            where: {
+                ...whereClause,
+                type: "LENT",
+            },
+            _sum: {
+                amount: true,
+            },
+        }),
+        prisma.payment.aggregate({
+            where: {
+                ...whereClause,
+                type: "BORROWED",
+            },
+            _sum: {
+                amount: true,
+            },
+        }),
+        prisma.payment.count({
+            where: whereClause,
+        }),
+    ]);
+
+    const unpaidLent = unpaidLentStats._sum?.amount || 0;
+    const unpaidBorrowed = unpaidBorrowedStats._sum?.amount || 0;
+    const activePaymentsCount = activeCount;
+    const netBalance = unpaidLent - unpaidBorrowed;
+
+    return {
+        unpaidLent,
+        unpaidBorrowed,
+        activePaymentsCount,
+        netBalance,
     };
 }
 

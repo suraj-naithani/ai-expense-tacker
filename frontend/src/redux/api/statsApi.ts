@@ -3,6 +3,8 @@ import { server } from "@/constants/config";
 import {
     TransactionStatsResponse,
     TransactionStatsQueryParams,
+    PaymentStatsResponse,
+    PaymentStatsQueryParams,
 } from "@/types/stats";
 
 export const statsApi = createApi({
@@ -26,10 +28,20 @@ export const statsApi = createApi({
             }),
             providesTags: ["Stats"],
         }),
+        getPaymentStats: builder.query<PaymentStatsResponse, PaymentStatsQueryParams>({
+            query: (params) => ({
+                url: "payment",
+                params: {
+                    accountId: params.accountId,
+                },
+            }),
+            providesTags: ["Stats"],
+        }),
     }),
 });
 
 export const {
     useGetTransactionStatsQuery,
+    useGetPaymentStatsQuery,
 } = statsApi;
 
