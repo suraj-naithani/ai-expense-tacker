@@ -16,6 +16,7 @@ import {
     DateTransactionsQueryParams,
     UpcomingRecurringTransactionsResponse,
 } from "@/types/transaction";
+import { statsApi } from "./statsApi";
 
 export const transactionApi = createApi({
     reducerPath: "transactionApi",
@@ -41,6 +42,14 @@ export const transactionApi = createApi({
                 body,
             }),
             invalidatesTags: ["Transaction", "RecurringTransaction"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         toggleRecurringTransaction: builder.mutation<ToggleRecurringResponse, string>({
@@ -58,6 +67,14 @@ export const transactionApi = createApi({
                 body,
             }),
             invalidatesTags: ["Transaction"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         deleteTransaction: builder.mutation<DeleteTransactionResponse, string>({
@@ -66,6 +83,14 @@ export const transactionApi = createApi({
                 method: "DELETE",
             }),
             invalidatesTags: ["Transaction", "RecurringTransaction"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         bulkDeleteTransactions: builder.mutation<BulkDeleteTransactionResponse, { ids: string[] }>({
@@ -75,6 +100,14 @@ export const transactionApi = createApi({
                 body,
             }),
             invalidatesTags: ["Transaction", "RecurringTransaction"],
+            async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+                try {
+                    await queryFulfilled;
+                    dispatch(statsApi.util.invalidateTags(["Stats"]));
+                } catch {
+                    // Stats will be invalidated on success
+                }
+            },
         }),
 
         getCalendarTransactions: builder.query<CalendarTransactionsResponse, CalendarTransactionsQueryParams>({

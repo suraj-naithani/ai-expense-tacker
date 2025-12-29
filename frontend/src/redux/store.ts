@@ -3,6 +3,7 @@ import { accountApi } from "./api/accountApi";
 import { categoryApi } from "./api/categoryApi";
 import { transactionApi } from "./api/transactionApi";
 import { paymentApi } from "./api/paymentApi";
+import { statsApi } from "./api/statsApi";
 import defaultAccountReducer from "./slices/defaultAccountSlice";
 
 export const store = configureStore({
@@ -11,6 +12,7 @@ export const store = configureStore({
         [categoryApi.reducerPath]: categoryApi.reducer,
         [transactionApi.reducerPath]: transactionApi.reducer,
         [paymentApi.reducerPath]: paymentApi.reducer,
+        [statsApi.reducerPath]: statsApi.reducer,
         defaultAccount: defaultAccountReducer,
     },
     middleware: (getDefaultMiddleware) =>
@@ -19,6 +21,7 @@ export const store = configureStore({
             categoryApi.middleware,
             transactionApi.middleware,
             paymentApi.middleware,
+            statsApi.middleware,
         ),
 });
 

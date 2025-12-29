@@ -24,6 +24,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
 import { usePagination } from "@/hooks/usePagination";
 import {
@@ -33,12 +40,14 @@ import {
   useGetTransactionsQuery,
   useUpdateTransactionMutation,
 } from "@/redux/api/transactionApi";
+import { useGetTransactionStatsQuery } from "@/redux/api/statsApi";
 import type {
   CreateTransactionFormValues,
   Transaction,
   UpdateTransactionFormValues,
   UpdateTransactionPayload,
 } from "@/types/transaction";
+import type { TimeRange } from "@/types/stats";
 
 export default function Page() {
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>(
@@ -54,6 +63,7 @@ export default function Page() {
   const [isBulkDeleteRecurringDialogOpen, setIsBulkDeleteRecurringDialogOpen] = useState(false);
   const [updatingTransaction, setUpdatingTransaction] = useState<Transaction | null>(null);
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>("monthly");
 
   const defaultAccountId = useDefaultAccount();
 
@@ -108,6 +118,21 @@ export default function Page() {
   const [deleteTransaction] = useDeleteTransactionMutation();
   const [bulkDeleteTransactions] = useBulkDeleteTransactionsMutation();
   const [updateTransaction] = useUpdateTransactionMutation();
+
+  // Get transaction stats
+  const {
+    data: statsResponse,
+    isLoading: isStatsLoading,
+  } = useGetTransactionStatsQuery(
+    {
+      timeRange,
+      accountId: defaultAccountId || "",
+    },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    }
+  );
 
   const transactions: Transaction[] = useMemo(
     () => transactionsResponse?.data ?? [],
@@ -344,29 +369,15 @@ export default function Page() {
     }
   }, [selectedRecurringTransactions, bulkDeleteTransactions]);
 
-  // Calculate totals with useMemo for performance
-  const { totalIncome, totalExpenses, totalBalance } = useMemo(() => {
-    const income = transactions
-      .filter((t) => t.type === "INCOME")
-      .reduce((sum, t) => sum + t.amount, 0);
-    const expenses = transactions
-      .filter((t) => t.type === "EXPENSE")
-      .reduce((sum, t) => sum + t.amount, 0);
-    return {
-      totalIncome: income,
-      totalExpenses: expenses,
-      totalBalance: income - expenses,
-    };
-  }, [transactions]);
-
-  const incomeCount = useMemo(
-    () => transactions.filter((t) => t.type === "INCOME").length,
-    [transactions]
-  );
-  const expenseCount = useMemo(
-    () => transactions.filter((t) => t.type === "EXPENSE").length,
-    [transactions]
-  );
+  // Get stats from API
+  const statsData = statsResponse?.data;
+  const totalBalance = statsData?.totalBalance ?? 0;
+  const totalTransactions = statsData?.totalTransactions ?? 0;
+  const totalIncome = statsData?.totalIncome ?? 0;
+  const totalExpenses = statsData?.totalExpenses ?? 0;
+  const incomeCount = statsData?.incomeCount ?? 0;
+  const expenseCount = statsData?.expenseCount ?? 0;
+  const comparisons = statsData?.comparisons;
 
   return (
     <>
@@ -378,14 +389,27 @@ export default function Page() {
               Manage and track all your financial transactions
             </p>
           </div>
-          <Button
-            size="sm"
-            className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
-            onClick={() => setIsAddTransactionOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Transaction
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRange)}>
+              <SelectTrigger className="w-[140px] border-[var(--border)] bg-[var(--card)]">
+                <SelectValue placeholder="Time Range" />
+              </SelectTrigger>
+              <SelectContent className="border-[var(--border)] bg-[var(--card)]">
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="3months">3 Months</SelectItem>
+                <SelectItem value="6months">6 Months</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+              onClick={() => setIsAddTransactionOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Transaction
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:gap-6 grid-cols-2 md:grid-cols-4">
@@ -397,14 +421,27 @@ export default function Page() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-xl md:text-2xl font-bold ${totalBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}`}>
-                ₹{totalBalance.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <span className={totalBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}>
-                  {totalBalance >= 0 ? "+" : ""}
-                </span> from transactions
-              </p>
+              {isStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className={`text-xl md:text-2xl font-bold ${totalBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}`}>
+                    ₹{totalBalance.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {comparisons?.totalBalance ? (
+                      <span className={comparisons.totalBalance.type === "increase" ? "text-[#4ade80]" : comparisons.totalBalance.type === "decrease" ? "text-[#f87171]" : ""}>
+                        {comparisons.totalBalance.type === "increase" ? "+" : ""}
+                        {comparisons.totalBalance.change.toFixed(1)}% from last period
+                      </span>
+                    ) : (
+                      <span className={totalBalance >= 0 ? "text-[#4ade80]" : "text-[#f87171]"}>
+                        {totalBalance >= 0 ? "+" : ""} from transactions
+                      </span>
+                    )}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           <Card className="border-[var(--border)] bg-[var(--card)]">
@@ -415,12 +452,25 @@ export default function Page() {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold">
-                {transactions.length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                All transactions
-              </p>
+              {isStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold">
+                    {totalTransactions}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {comparisons?.totalTransactions ? (
+                      <span className={comparisons.totalTransactions.type === "increase" ? "text-[#4ade80]" : comparisons.totalTransactions.type === "decrease" ? "text-[#f87171]" : ""}>
+                        {comparisons.totalTransactions.type === "increase" ? "+" : ""}
+                        {comparisons.totalTransactions.change.toFixed(1)}% from last period
+                      </span>
+                    ) : (
+                      "All transactions"
+                    )}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -432,12 +482,25 @@ export default function Page() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#4ade80]">
-                ₹{totalIncome.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {incomeCount} transactions
-              </p>
+              {isStatsLoading ? (
+                <div className="text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-[#4ade80]">
+                    ₹{totalIncome.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {comparisons?.totalIncome ? (
+                      <span className={comparisons.totalIncome.type === "increase" ? "text-[#4ade80]" : comparisons.totalIncome.type === "decrease" ? "text-[#f87171]" : ""}>
+                        {comparisons.totalIncome.type === "increase" ? "+" : ""}
+                        {comparisons.totalIncome.change.toFixed(1)}% from last period
+                      </span>
+                    ) : (
+                      `${incomeCount} transaction${incomeCount !== 1 ? "s" : ""}`
+                    )}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -449,12 +512,25 @@ export default function Page() {
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-[#f87171]">
-                ₹{totalExpenses.toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {expenseCount} transactions
-              </p>
+              {isStatsLoading ? (
+                <div className="text-2xl font-bold text-muted-foreground">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-2xl font-bold text-[#f87171]">
+                    ₹{totalExpenses.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {comparisons?.totalExpenses ? (
+                      <span className={comparisons.totalExpenses.type === "increase" ? "text-[#f87171]" : comparisons.totalExpenses.type === "decrease" ? "text-[#4ade80]" : ""}>
+                        {comparisons.totalExpenses.type === "increase" ? "+" : ""}
+                        {comparisons.totalExpenses.change.toFixed(1)}% from last period
+                      </span>
+                    ) : (
+                      `${expenseCount} transaction${expenseCount !== 1 ? "s" : ""}`
+                    )}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

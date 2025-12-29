@@ -14,6 +14,7 @@ import accountRoute from "./routes/account.route.js";
 import categoryRoute from "./routes/category.route.js";
 import transactionRoute from "./routes/transaction.route.js";
 import paymentRoute from "./routes/payment.route.js";
+import statsRoute from "./routes/stats.route.js";
 import { startRecurringTransactionsCron } from "./cron/recurringTransactions.cron.js";
 
 const app = express();
@@ -43,6 +44,7 @@ app.use("/api/v1/accounts", accountRoute);
 app.use("/api/v1/categories", categoryRoute);
 app.use("/api/v1/transactions", transactionRoute);
 app.use("/api/v1/payments", paymentRoute);
+app.use("/api/v1/stats", statsRoute);
 
 connectDB().then(() => {
     // Start cron after DB connection is ready
