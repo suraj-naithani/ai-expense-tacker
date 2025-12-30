@@ -1,7 +1,9 @@
 "use client";
 
-import { Calendar, Download, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { Calendar as CalendarIcon, Download, TrendingUp } from "lucide-react";
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +26,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import { useGetTransactionStatsQuery } from "@/redux/api/statsApi";
 import {
   Bar,
   BarChart,
@@ -83,7 +93,60 @@ const pieData = [
 ];
 
 export default function ReportsPage() {
-  const [selectedPeriod, setSelectedPeriod] = useState("6months");
+  const [selectedPeriod, setSelectedPeriod] = useState<"monthly" | "3months" | "6months" | "yearly" | "custom">("6months");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [isCustomDatePickerOpen, setIsCustomDatePickerOpen] = useState(false);
+  const [tempDateRange, setTempDateRange] = useState<DateRange | undefined>(undefined);
+  const defaultAccountId = useDefaultAccount();
+
+  const timeRange = dateRange ? "custom" : selectedPeriod;
+
+  // Open popover when custom is selected
+  useEffect(() => {
+    if (selectedPeriod === "custom") {
+      const timer = setTimeout(() => {
+        setIsCustomDatePickerOpen(true);
+        setTempDateRange(dateRange || undefined);
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      setIsCustomDatePickerOpen(false);
+    }
+  }, [selectedPeriod, dateRange]);
+
+  // Get transaction stats
+  const {
+    data: statsResponse,
+    isLoading: isStatsLoading,
+  } = useGetTransactionStatsQuery(
+    {
+      timeRange: timeRange as "monthly" | "3months" | "6months" | "yearly" | "custom",
+      accountId: defaultAccountId || "",
+      ...(timeRange === "custom" && dateRange?.from && dateRange?.to && {
+        startDate: format(dateRange.from, "yyyy-MM-dd"),
+        endDate: format(dateRange.to, "yyyy-MM-dd"),
+      }),
+    },
+    {
+      skip: !defaultAccountId || (timeRange === "custom" && (!dateRange?.from || !dateRange?.to)),
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  // Calculate stats from API
+  const statsData = statsResponse?.data;
+  const totalIncome = statsData?.totalIncome ?? 0;
+  const totalExpenses = statsData?.totalExpenses ?? 0;
+  const totalBalance = statsData?.totalBalance ?? 0;
+  const comparisons = statsData?.comparisons;
+
+  // Calculate savings rate
+  const savingsRate = totalIncome > 0 ? (totalBalance / totalIncome) * 100 : 0;
+
+  // Calculate savings rate comparison using balance comparison as proxy
+  // Since savings rate = balance/income, we use balance change as an approximation
+  const savingsRateChange = comparisons?.totalBalance?.change ?? 0;
+  const savingsRateChangeType = comparisons?.totalBalance?.type ?? "no-change";
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -95,25 +158,121 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[140px] border-[var(--border)] bg-[var(--card)]">
-              <SelectValue placeholder="Period" />
-            </SelectTrigger>
-            <SelectContent className="border-[var(--border)] bg-[var(--card)]">
-              <SelectItem value="1month">Last Month</SelectItem>
-              <SelectItem value="3months">Last 3 Months</SelectItem>
-              <SelectItem value="6months">Last 6 Months</SelectItem>
-              <SelectItem value="1year">Last Year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-[var(--border)]"
-          >
-            <Calendar className="h-4 w-4 mr-2" />
-            Custom Range
-          </Button>
+          <Popover open={isCustomDatePickerOpen} onOpenChange={setIsCustomDatePickerOpen}>
+            <div className="flex items-center gap-2">
+              <Select
+                value={dateRange ? "custom" : selectedPeriod}
+                onValueChange={(value) => {
+                  if (value === "custom") {
+                    setSelectedPeriod("custom");
+                    setIsCustomDatePickerOpen(true);
+                    setTempDateRange(dateRange || undefined);
+                  } else {
+                    setSelectedPeriod(value as "monthly" | "3months" | "6months" | "yearly");
+                    setDateRange(undefined);
+                    setIsCustomDatePickerOpen(false);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[140px] border-[var(--border)] bg-[var(--card)]">
+                  <SelectValue placeholder="Period" />
+                </SelectTrigger>
+                <SelectContent className="border-[var(--border)] bg-[var(--card)]">
+                  <SelectItem value="monthly">Last Month</SelectItem>
+                  <SelectItem value="3months">Last 3 Months</SelectItem>
+                  <SelectItem value="6months">Last 6 Months</SelectItem>
+                  <SelectItem value="yearly">Last Year</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(selectedPeriod === "custom" || dateRange?.from) && (
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-[240px] justify-start text-left font-normal border-[var(--border)] bg-[var(--card)]"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateRange?.from && dateRange?.to ? (
+                      <>
+                        {format(dateRange.from, "LLL dd, y")} -{" "}
+                        {format(dateRange.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      "Select date range"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+              )}
+            </div>
+            <PopoverContent className="w-auto p-0 border-[var(--border)] bg-[var(--card)]" align="start">
+              <div className="p-4">
+                <div className="flex items-center gap-4 text-sm pb-4 border-b border-[var(--border)]">
+                  <div>
+                    <span className="text-muted-foreground">From: </span>
+                    <span className="font-medium">
+                      {tempDateRange?.from ? format(tempDateRange.from, "MMM dd, yyyy") : "Not selected"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">To: </span>
+                    <span className="font-medium">
+                      {tempDateRange?.to ? format(tempDateRange.to, "MMM dd, yyyy") : "Not selected"}
+                    </span>
+                  </div>
+                </div>
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={tempDateRange?.from || new Date()}
+                  selected={tempDateRange}
+                  onSelect={setTempDateRange}
+                  numberOfMonths={1}
+                  classNames={{
+                    day_range_start: "bg-[#6366f1] text-white rounded-l-md",
+                    day_range_end: "bg-[#6366f1] text-white rounded-r-md",
+                    day_range_middle: "bg-[#6366f1]/20 text-foreground",
+                    day_selected: "bg-[#6366f1] text-white hover:bg-[#6366f1] hover:text-white",
+                  }}
+                />
+                <div className="flex items-center justify-end gap-2 pt-4 border-t border-[var(--border)]">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-[var(--border)]"
+                    onClick={() => {
+                      setIsCustomDatePickerOpen(false);
+                      if (dateRange?.from && dateRange?.to) {
+                        setTempDateRange(dateRange);
+                      } else {
+                        setTempDateRange(undefined);
+                        if (selectedPeriod === "custom") {
+                          setSelectedPeriod("6months");
+                        }
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-[#6366f1] hover:bg-[#4f46e5] text-white"
+                    disabled={!tempDateRange?.from || !tempDateRange?.to}
+                    onClick={() => {
+                      if (tempDateRange?.from && tempDateRange?.to) {
+                        setDateRange(tempDateRange);
+                        setSelectedPeriod("custom");
+                        setIsCustomDatePickerOpen(false);
+                      }
+                    }}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           <Button
             variant="outline"
             size="sm"
@@ -133,13 +292,33 @@ export default function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
-              $5,350
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-[#4ade80]" />
-              <span className="text-[#4ade80]">+5.2%</span> vs last period
-            </p>
+            {isStatsLoading ? (
+              <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+            ) : (
+              <>
+                <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
+                  ₹{totalIncome.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {comparisons?.totalIncome ? (
+                    <>
+                      {comparisons.totalIncome.type === "increase" ? (
+                        <TrendingUp className="h-3 w-3 text-[#4ade80]" />
+                      ) : comparisons.totalIncome.type === "decrease" ? (
+                        <TrendingUp className="h-3 w-3 text-[#f87171] rotate-180" />
+                      ) : null}
+                      <span className={comparisons.totalIncome.type === "increase" ? "text-[#4ade80]" : comparisons.totalIncome.type === "decrease" ? "text-[#f87171]" : ""}>
+                        {comparisons.totalIncome.type === "increase" ? "+" : ""}
+                        {comparisons.totalIncome.change.toFixed(1)}%
+                      </span>
+                      {" vs last period"}
+                    </>
+                  ) : (
+                    <span>No comparison data</span>
+                  )}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -150,13 +329,33 @@ export default function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl md:text-2xl font-bold text-[#f87171]">
-              $4,033
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-[#f87171]" />
-              <span className="text-[#f87171]">+2.8%</span> vs last period
-            </p>
+            {isStatsLoading ? (
+              <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+            ) : (
+              <>
+                <div className="text-xl md:text-2xl font-bold text-[#f87171]">
+                  ₹{totalExpenses.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {comparisons?.totalExpenses ? (
+                    <>
+                      {comparisons.totalExpenses.type === "increase" ? (
+                        <TrendingUp className="h-3 w-3 text-[#f87171]" />
+                      ) : comparisons.totalExpenses.type === "decrease" ? (
+                        <TrendingUp className="h-3 w-3 text-[#4ade80] rotate-180" />
+                      ) : null}
+                      <span className={comparisons.totalExpenses.type === "increase" ? "text-[#f87171]" : comparisons.totalExpenses.type === "decrease" ? "text-[#4ade80]" : ""}>
+                        {comparisons.totalExpenses.type === "increase" ? "+" : ""}
+                        {comparisons.totalExpenses.change.toFixed(1)}%
+                      </span>
+                      {" vs last period"}
+                    </>
+                  ) : (
+                    <span>No comparison data</span>
+                  )}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -167,13 +366,33 @@ export default function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl md:text-2xl font-bold text-[#60a5fa]">
-              $1,317
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-[#4ade80]" />
-              <span className="text-[#4ade80]">+12.5%</span> vs last period
-            </p>
+            {isStatsLoading ? (
+              <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+            ) : (
+              <>
+                <div className={`text-xl md:text-2xl font-bold ${totalBalance >= 0 ? "text-[#60a5fa]" : "text-[#f87171]"}`}>
+                  ₹{totalBalance.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {comparisons?.totalBalance ? (
+                    <>
+                      {comparisons.totalBalance.type === "increase" ? (
+                        <TrendingUp className="h-3 w-3 text-[#4ade80]" />
+                      ) : comparisons.totalBalance.type === "decrease" ? (
+                        <TrendingUp className="h-3 w-3 text-[#f87171] rotate-180" />
+                      ) : null}
+                      <span className={comparisons.totalBalance.type === "increase" ? "text-[#4ade80]" : comparisons.totalBalance.type === "decrease" ? "text-[#f87171]" : ""}>
+                        {comparisons.totalBalance.type === "increase" ? "+" : ""}
+                        {comparisons.totalBalance.change.toFixed(1)}%
+                      </span>
+                      {" vs last period"}
+                    </>
+                  ) : (
+                    <span>No comparison data</span>
+                  )}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -184,13 +403,33 @@ export default function ReportsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xl md:text-2xl font-bold text-[#a78bfa]">
-              24.6%
-            </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3 text-[#4ade80]" />
-              <span className="text-[#4ade80]">+3.1%</span> vs last period
-            </p>
+            {isStatsLoading ? (
+              <div className="text-xl md:text-2xl font-bold text-muted-foreground">Loading...</div>
+            ) : (
+              <>
+                <div className="text-xl md:text-2xl font-bold text-[#a78bfa]">
+                  {savingsRate.toFixed(1)}%
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {comparisons?.totalBalance ? (
+                    <>
+                      {savingsRateChangeType === "increase" ? (
+                        <TrendingUp className="h-3 w-3 text-[#4ade80]" />
+                      ) : savingsRateChangeType === "decrease" ? (
+                        <TrendingUp className="h-3 w-3 text-[#f87171] rotate-180" />
+                      ) : null}
+                      <span className={savingsRateChangeType === "increase" ? "text-[#4ade80]" : savingsRateChangeType === "decrease" ? "text-[#f87171]" : ""}>
+                        {savingsRateChangeType === "increase" ? "+" : ""}
+                        {savingsRateChange.toFixed(1)}%
+                      </span>
+                      {" vs last period"}
+                    </>
+                  ) : (
+                    <span>No comparison data</span>
+                  )}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
