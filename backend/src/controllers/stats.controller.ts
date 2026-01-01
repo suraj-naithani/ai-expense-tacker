@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/connection.js";
 import { calculateDateRange } from "../utils/statsHelper.js";
-import { getTransactionStatsWithComparison, calculatePaymentStats } from "../services/stats.service.js";
-import { TransactionStatsQueryParams, PaymentStatsQueryParams } from "../types/stats.js";
+import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData } from "../services/stats.service.js";
+import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams } from "../types/stats.js";
 
 // Transaction Stats
 export const getTransactionStats = async (req: Request, res: Response) => {
@@ -40,12 +40,12 @@ export const getTransactionStats = async (req: Request, res: Response) => {
         const stats = await getTransactionStatsWithComparison(userId, dateRange, accountId);
 
         const responseData = {
-            totalBalance: stats.current.totalBalance,
-            totalTransactions: stats.current.totalTransactions,
-            totalIncome: stats.current.totalIncome,
-            totalExpenses: stats.current.totalExpenses,
-            incomeCount: stats.current.incomeCount,
-            expenseCount: stats.current.expenseCount,
+            totalBalance: stats.completeTotalBalance, // Complete all-time balance
+            totalTransactions: stats.current.totalTransactions, // Monthly
+            totalIncome: stats.current.totalIncome, // Monthly
+            totalExpenses: stats.current.totalExpenses, // Monthly
+            incomeCount: stats.current.incomeCount, // Monthly
+            expenseCount: stats.current.expenseCount, // Monthly
             comparisons: stats.comparisons,
             periods: stats.periods,
             timeRange: timeRange || "monthly",
@@ -131,6 +131,36 @@ export const getReportStats = async (req: Request, res: Response) => {
         res.status(500).json({
             success: false,
             message: error.message || "Failed to fetch report stats",
+        });
+    }
+};
+
+// Transaction Graph Stats
+export const getTransactionGraphStats = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+
+    try {
+        const { accountId } = req.query as TransactionGraphQueryParams;
+
+        if (!accountId) {
+            return res.status(400).json({
+                success: false,
+                message: "accountId is required",
+            });
+        }
+
+        const graphData = await getTransactionGraphData(userId, accountId);
+
+        res.status(200).json({
+            success: true,
+            message: "Transaction graph stats retrieved successfully",
+            data: graphData,
+        });
+    } catch (error: any) {
+        console.error("Get transaction graph stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch transaction graph stats",
         });
     }
 };

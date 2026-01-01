@@ -5,6 +5,8 @@ import {
     TransactionStatsQueryParams,
     PaymentStatsResponse,
     PaymentStatsQueryParams,
+    TransactionGraphResponse,
+    TransactionGraphQueryParams,
 } from "@/types/stats";
 
 export const statsApi = createApi({
@@ -37,11 +39,21 @@ export const statsApi = createApi({
             }),
             providesTags: ["Stats"],
         }),
+        getTransactionGraph: builder.query<TransactionGraphResponse, TransactionGraphQueryParams>({
+            query: (params) => ({
+                url: "transaction/graph",
+                params: {
+                    ...(params.accountId && { accountId: params.accountId }),
+                },
+            }),
+            providesTags: ["Stats"],
+        }),
     }),
 });
 
 export const {
     useGetTransactionStatsQuery,
     useGetPaymentStatsQuery,
+    useGetTransactionGraphQuery,
 } = statsApi;
 

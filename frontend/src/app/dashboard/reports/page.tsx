@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
-import { useGetTransactionStatsQuery } from "@/redux/api/statsApi";
+import { useGetTransactionStatsQuery, useGetTransactionGraphQuery } from "@/redux/api/statsApi";
 import {
   Bar,
   BarChart,
@@ -48,20 +48,6 @@ import {
   YAxis,
 } from "recharts";
 
-const monthlyData = [
-  { month: "Jan", income: 4000, expenses: 2400, savings: 1600 },
-  { month: "Feb", income: 3000, expenses: 1398, savings: 1602 },
-  { month: "Mar", income: 2000, expenses: 980, savings: 1020 },
-  { month: "Apr", income: 2780, expenses: 3908, savings: -1128 },
-  { month: "May", income: 1890, expenses: 4800, savings: -2910 },
-  { month: "Jun", income: 2390, expenses: 3800, savings: -1410 },
-  { month: "Jul", income: 3490, expenses: 4300, savings: -810 },
-  { month: "Aug", income: 4200, expenses: 2800, savings: 1400 },
-  { month: "Sep", income: 3800, expenses: 2100, savings: 1700 },
-  { month: "Oct", income: 4500, expenses: 3000, savings: 1500 },
-  { month: "Nov", income: 5000, expenses: 3500, savings: 1500 },
-  { month: "Dec", income: 5500, expenses: 4000, savings: 1500 },
-];
 
 const categoryTrends = [
   { month: "Jan", Food: 4000, Transport: 320, Shopping: 2400, Bills: 1600 },
@@ -101,6 +87,29 @@ export default function ReportsPage() {
 
   const timeRange = dateRange ? "custom" : selectedPeriod;
 
+  // Get period label for card titles
+  const getPeriodLabel = () => {
+    if (dateRange?.from && dateRange?.to) {
+      return "Custom Range";
+    }
+    switch (selectedPeriod) {
+      case "monthly":
+        return "Monthly";
+      case "3months":
+        return "3 Month";
+      case "6months":
+        return "6 Month";
+      case "yearly":
+        return "Yearly";
+      case "custom":
+        return "Custom";
+      default:
+        return "Monthly";
+    }
+  };
+
+  const periodLabel = getPeriodLabel();
+
   // Open popover when custom is selected
   useEffect(() => {
     if (selectedPeriod === "custom") {
@@ -132,6 +141,23 @@ export default function ReportsPage() {
       refetchOnMountOrArgChange: true,
     }
   );
+
+  // Get transaction graph data
+  const {
+    data: graphResponse,
+    isLoading: isGraphLoading,
+  } = useGetTransactionGraphQuery(
+    {
+      accountId: defaultAccountId || undefined,
+    },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  // Use API data for graph, fallback to empty array if loading or no data
+  const monthlyData = graphResponse?.data || [];
 
   // Calculate stats from API
   const statsData = statsResponse?.data;
@@ -288,7 +314,7 @@ export default function ReportsPage() {
         <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Monthly Income
+              {periodLabel} Income
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -325,7 +351,7 @@ export default function ReportsPage() {
         <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Monthly Expenses
+              {periodLabel} Expenses
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -362,7 +388,7 @@ export default function ReportsPage() {
         <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Monthly Savings
+              {periodLabel} Savings
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -399,7 +425,7 @@ export default function ReportsPage() {
         <Card className="border-[var(--border)] bg-[var(--card)] shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Savings Rate
+              {periodLabel} Savings Rate
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -443,52 +469,62 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                income: {
-                  label: "Income",
-                  color: "#10b981",
-                },
-                expenses: {
-                  label: "Expenses",
-                  color: "#ef4444",
-                },
-                savings: {
-                  label: "Savings",
-                  color: "#6366f1",
-                },
-              }}
-              className="h-[400px] w-full"
-            >
-              <BarChart
-                accessibilityLayer
-                data={monthlyData}
-                barSize={10}
-                barCategoryGap="30%"
+            {isGraphLoading ? (
+              <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+                Loading graph data...
+              </div>
+            ) : monthlyData.length === 0 ? (
+              <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+                No data available
+              </div>
+            ) : (
+              <ChartContainer
+                config={{
+                  income: {
+                    label: "Income",
+                    color: "#10b981",
+                  },
+                  expense: {
+                    label: "Expenses",
+                    color: "#ef4444",
+                  },
+                  savings: {
+                    label: "Savings",
+                    color: "#6366f1",
+                  },
+                }}
+                className="h-[400px] w-full"
               >
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={8}
-                  tickFormatter={(value) => `$${value}`}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend
-                  verticalAlign="bottom"
-                  wrapperStyle={{ bottom: -10 }}
-                />
-                <Bar dataKey="income" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="savings" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
+                <BarChart
+                  accessibilityLayer
+                  data={monthlyData}
+                  barSize={10}
+                  barCategoryGap="30%"
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tickMargin={8}
+                    tickFormatter={(value) => `₹${value}`}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend
+                    verticalAlign="bottom"
+                    wrapperStyle={{ bottom: -10 }}
+                  />
+                  <Bar dataKey="income" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="savings" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
         <Card className="col-span-full lg:col-span-3 border-[var(--border)] bg-[var(--card)] shadow-sm">

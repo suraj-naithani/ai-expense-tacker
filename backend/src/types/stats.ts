@@ -62,3 +62,18 @@ export interface PaymentStats {
     netBalance: number;
 }
 
+export interface TransactionGraphQueryParams {
+    accountId?: string;
+}
+
+export interface MonthlyGraphData {
+    month: string; // Format: "YYYY-MM" or "MMM YYYY"
+    income: number;
+    expense: number;
+    savings: number;
+}
+
+export interface TransactionGraphData {
+    data: MonthlyGraphData[];
+}
+

@@ -60,3 +60,20 @@ export interface PaymentStatsResponse {
     data: PaymentStatsData;
 }
 
+export interface TransactionGraphQueryParams {
+    accountId?: string;
+}
+
+export interface MonthlyGraphData {
+    month: string; // Format: "MMM YYYY"
+    income: number;
+    expense: number;
+    savings: number;
+}
+
+export interface TransactionGraphResponse {
+    success: boolean;
+    message: string;
+    data: MonthlyGraphData[];
+}
+

@@ -4,6 +4,7 @@ import {
     getTransactionStats,
     getPaymentStats,
     getReportStats,
+    getTransactionGraphStats,
 } from "../controllers/stats.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -13,14 +14,14 @@ app.use(authMiddleware);
 
 app.get("/transaction", getTransactionStats);
 
-// Dashboard stats route
-app.get("/dashboard", getDashboardStats);
+app.get("/transaction/graph", getTransactionGraphStats);
 
-// Payment stats route
 app.get("/payment", getPaymentStats);
 
-// Report stats route
 app.get("/report", getReportStats);
+
+// Dashboard stats route
+app.get("/dashboard", getDashboardStats);
 
 export default app;
 
