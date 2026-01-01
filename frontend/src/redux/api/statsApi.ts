@@ -7,6 +7,8 @@ import {
     PaymentStatsQueryParams,
     TransactionGraphResponse,
     TransactionGraphQueryParams,
+    IncomeExpenseSavingsResponse,
+    IncomeExpenseSavingsQueryParams,
 } from "@/types/stats";
 
 export const statsApi = createApi({
@@ -48,6 +50,18 @@ export const statsApi = createApi({
             }),
             providesTags: ["Stats"],
         }),
+        getIncomeExpenseSavings: builder.query<IncomeExpenseSavingsResponse, IncomeExpenseSavingsQueryParams>({
+            query: (params) => ({
+                url: "income-expense-savings",
+                params: {
+                    ...(params.timeRange && { timeRange: params.timeRange }),
+                    ...(params.startDate && { startDate: params.startDate }),
+                    ...(params.endDate && { endDate: params.endDate }),
+                    accountId: params.accountId,
+                },
+            }),
+            providesTags: ["Stats"],
+        }),
     }),
 });
 
@@ -55,5 +69,6 @@ export const {
     useGetTransactionStatsQuery,
     useGetPaymentStatsQuery,
     useGetTransactionGraphQuery,
+    useGetIncomeExpenseSavingsQuery,
 } = statsApi;
 

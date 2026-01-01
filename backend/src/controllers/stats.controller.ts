@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/connection.js";
 import { calculateDateRange } from "../utils/statsHelper.js";
-import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData } from "../services/stats.service.js";
-import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams } from "../types/stats.js";
+import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData, getIncomeExpenseSavingsStats } from "../services/stats.service.js";
+import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, IncomeExpenseSavingsQueryParams } from "../types/stats.js";
 
 // Transaction Stats
 export const getTransactionStats = async (req: Request, res: Response) => {
@@ -39,8 +39,12 @@ export const getTransactionStats = async (req: Request, res: Response) => {
 
         const stats = await getTransactionStatsWithComparison(userId, dateRange, accountId);
 
+        // Calculate period savings (income - expenses for the selected period)
+        const periodSavings = stats.current.totalIncome - stats.current.totalExpenses;
+
         const responseData = {
             totalBalance: stats.completeTotalBalance, // Complete all-time balance
+            periodSavings: periodSavings, // Savings for the selected period (income - expenses)
             totalTransactions: stats.current.totalTransactions, // Monthly
             totalIncome: stats.current.totalIncome, // Monthly
             totalExpenses: stats.current.totalExpenses, // Monthly
@@ -161,6 +165,55 @@ export const getTransactionGraphStats = async (req: Request, res: Response) => {
         res.status(500).json({
             success: false,
             message: error.message || "Failed to fetch transaction graph stats",
+        });
+    }
+};
+
+// Income, Expense, Savings Stats
+export const getIncomeExpenseSavingsStatsController = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+
+    try {
+        const {
+            timeRange = "monthly",
+            startDate: customStartDate,
+            endDate: customEndDate,
+            accountId,
+        } = req.query as IncomeExpenseSavingsQueryParams;
+
+        if (!accountId) {
+            return res.status(400).json({
+                success: false,
+                message: "accountId is required",
+            });
+        }
+
+        let dateRange;
+        try {
+            dateRange = calculateDateRange(
+                timeRange || "monthly",
+                customStartDate,
+                customEndDate
+            );
+        } catch (error: any) {
+            return res.status(400).json({
+                success: false,
+                message: error.message || "Invalid date range parameters",
+            });
+        }
+
+        const stats = await getIncomeExpenseSavingsStats(userId, dateRange, accountId);
+
+        res.status(200).json({
+            success: true,
+            message: "Income, expense, and savings stats retrieved successfully",
+            data: stats,
+        });
+    } catch (error: any) {
+        console.error("Get income expense savings stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch income expense savings stats",
         });
     }
 };

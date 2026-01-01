@@ -2,7 +2,7 @@ import { prisma } from "../utils/connection.js";
 import { Prisma } from "@prisma/client";
 import moment from "moment";
 import { calculatePreviousDateRange, calculatePercentageChange } from "../utils/statsHelper.js";
-import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData } from "../types/stats.js";
+import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData } from "../types/stats.js";
 import { PaymentStatus } from "../types/payment.js";
 
 export async function calculateTransactionStats(
@@ -275,5 +275,74 @@ export async function getTransactionGraphData(
     }
 
     return monthlyData;
+}
+
+/**
+ * Calculate income, expenses, and savings with percentages for a given time period
+ */
+export async function getIncomeExpenseSavingsStats(
+    userId: string,
+    dateRange: DateRange,
+    accountId?: string
+): Promise<IncomeExpenseSavingsData> {
+    const { startDate, endDate } = dateRange;
+
+    const whereClause: any = {
+        userId,
+        isRecurring: false,
+        createdAt: {
+            gte: startDate,
+            lte: endDate,
+        },
+        ...(accountId && { accountId }),
+    };
+
+    const [incomeStats, expenseStats] = await Promise.all([
+        prisma.transaction.aggregate({
+            where: {
+                ...whereClause,
+                type: "INCOME",
+            },
+            _sum: {
+                amount: true,
+            },
+        }),
+        prisma.transaction.aggregate({
+            where: {
+                ...whereClause,
+                type: "EXPENSE",
+            },
+            _sum: {
+                amount: true,
+            },
+        }),
+    ]);
+
+    const income = incomeStats._sum.amount || 0;
+    const expenses = expenseStats._sum.amount || 0;
+    const savings = income - expenses;
+
+    // Calculate percentages based on total (income + expenses + savings)
+    // Since savings = income - expenses, total = income + expenses + (income - expenses) = 2 * income
+    const total = income + expenses + savings; // This equals 2 * income when savings = income - expenses
+
+    const incomePercentage = total > 0 ? (income / total) * 100 : 0;
+    const expensesPercentage = total > 0 ? (expenses / total) * 100 : 0;
+    const savingsPercentage = total > 0 ? (savings / total) * 100 : 0;
+
+    return {
+        income: {
+            total: income,
+            percentage: Math.round(incomePercentage * 100) / 100, // Round to 2 decimal places
+        },
+        expenses: {
+            total: expenses,
+            percentage: Math.round(expensesPercentage * 100) / 100,
+        },
+        savings: {
+            total: savings,
+            percentage: Math.round(savingsPercentage * 100) / 100,
+        },
+    };
 }
 

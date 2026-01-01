@@ -18,7 +18,8 @@ export interface PeriodData {
 }
 
 export interface TransactionStatsData {
-    totalBalance: number;
+    totalBalance: number; // Complete all-time balance
+    periodSavings: number; // Savings for the selected period (income - expenses)
     totalTransactions: number;
     totalIncome: number;
     totalExpenses: number;
@@ -75,5 +76,33 @@ export interface TransactionGraphResponse {
     success: boolean;
     message: string;
     data: MonthlyGraphData[];
+}
+
+export interface IncomeExpenseSavingsQueryParams {
+    timeRange?: TimeRange;
+    startDate?: string;
+    endDate?: string;
+    accountId: string;
+}
+
+export interface IncomeExpenseSavingsData {
+    income: {
+        total: number;
+        percentage: number;
+    };
+    expenses: {
+        total: number;
+        percentage: number;
+    };
+    savings: {
+        total: number;
+        percentage: number;
+    };
+}
+
+export interface IncomeExpenseSavingsResponse {
+    success: boolean;
+    message: string;
+    data: IncomeExpenseSavingsData;
 }
 

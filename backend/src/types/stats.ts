@@ -77,3 +77,25 @@ export interface TransactionGraphData {
     data: MonthlyGraphData[];
 }
 
+export interface IncomeExpenseSavingsQueryParams {
+    timeRange?: TimeRange;
+    startDate?: string;
+    endDate?: string;
+    accountId?: string;
+}
+
+export interface IncomeExpenseSavingsData {
+    income: {
+        total: number;
+        percentage: number;
+    };
+    expenses: {
+        total: number;
+        percentage: number;
+    };
+    savings: {
+        total: number;
+        percentage: number;
+    };
+}
+

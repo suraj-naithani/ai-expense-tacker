@@ -5,6 +5,7 @@ import {
     getPaymentStats,
     getReportStats,
     getTransactionGraphStats,
+    getIncomeExpenseSavingsStatsController,
 } from "../controllers/stats.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -15,6 +16,8 @@ app.use(authMiddleware);
 app.get("/transaction", getTransactionStats);
 
 app.get("/transaction/graph", getTransactionGraphStats);
+
+app.get("/income-expense-savings", getIncomeExpenseSavingsStatsController);
 
 app.get("/payment", getPaymentStats);
 
