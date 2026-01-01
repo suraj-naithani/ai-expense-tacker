@@ -77,6 +77,20 @@ export interface TransactionGraphData {
     data: MonthlyGraphData[];
 }
 
+export interface DailySpendingQueryParams {
+    accountId?: string;
+}
+
+export interface DailySpendingData {
+    day: string; // Day name: "Sun", "Mon", etc.
+    amount: number; // Total expense for that day
+    date: string; // Date in YYYY-MM-DD format
+}
+
+export interface DailySpendingResponse {
+    data: DailySpendingData[];
+}
+
 export interface IncomeExpenseSavingsQueryParams {
     timeRange?: TimeRange;
     startDate?: string;

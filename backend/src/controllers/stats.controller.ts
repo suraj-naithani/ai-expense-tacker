@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/connection.js";
 import { calculateDateRange } from "../utils/statsHelper.js";
-import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData, getIncomeExpenseSavingsStats } from "../services/stats.service.js";
-import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, IncomeExpenseSavingsQueryParams } from "../types/stats.js";
+import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData, getIncomeExpenseSavingsStats, getDailySpendingStats } from "../services/stats.service.js";
+import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, IncomeExpenseSavingsQueryParams, DailySpendingQueryParams } from "../types/stats.js";
 
 // Transaction Stats
 export const getTransactionStats = async (req: Request, res: Response) => {
@@ -214,6 +214,36 @@ export const getIncomeExpenseSavingsStatsController = async (req: Request, res: 
         res.status(500).json({
             success: false,
             message: error.message || "Failed to fetch income expense savings stats",
+        });
+    }
+};
+
+// Daily Spending Stats (Last 7 Days)
+export const getDailySpendingStatsController = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+
+    try {
+        const { accountId } = req.query as DailySpendingQueryParams;
+
+        if (!accountId) {
+            return res.status(400).json({
+                success: false,
+                message: "accountId is required",
+            });
+        }
+
+        const dailySpending = await getDailySpendingStats(userId, accountId);
+
+        res.status(200).json({
+            success: true,
+            message: "Daily spending stats retrieved successfully",
+            data: dailySpending,
+        });
+    } catch (error: any) {
+        console.error("Get daily spending stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch daily spending stats",
         });
     }
 };

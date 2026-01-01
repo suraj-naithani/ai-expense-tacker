@@ -2,7 +2,7 @@ import { prisma } from "../utils/connection.js";
 import { Prisma } from "@prisma/client";
 import moment from "moment";
 import { calculatePreviousDateRange, calculatePercentageChange } from "../utils/statsHelper.js";
-import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData } from "../types/stats.js";
+import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData, DailySpendingData } from "../types/stats.js";
 import { PaymentStatus } from "../types/payment.js";
 
 export async function calculateTransactionStats(
@@ -344,5 +344,73 @@ export async function getIncomeExpenseSavingsStats(
             percentage: Math.round(savingsPercentage * 100) / 100,
         },
     };
+}
+
+/**
+ * Get daily spending for the last 7 days (including today)
+ * Returns expenses grouped by day from 6 days ago to today
+ * Optimized using Prisma native methods with reduce for efficient in-memory grouping
+ */
+export async function getDailySpendingStats(
+    userId: string,
+    accountId?: string
+): Promise<DailySpendingData[]> {
+    const today = moment().endOf("day").toDate();
+    const sixDaysAgo = moment().subtract(6, "days").startOf("day").toDate();
+
+    const whereClause: any = {
+        userId,
+        isRecurring: false,
+        type: "EXPENSE",
+        createdAt: {
+            gte: sixDaysAgo,
+            lte: today,
+        },
+        ...(accountId && { accountId }),
+    };
+
+    // Single Prisma query to fetch all expenses for the last 7 days
+    const expenses = await prisma.transaction.findMany({
+        where: whereClause,
+        select: {
+            amount: true,
+            createdAt: true,
+        },
+    });
+
+    // Use reduce to group by day and aggregate - more efficient than forEach
+    const dailyMap = expenses.reduce((acc, expense) => {
+        const dateKey = moment(expense.createdAt).format("YYYY-MM-DD");
+        const dayName = moment(expense.createdAt).format("ddd");
+
+        if (!acc[dateKey]) {
+            acc[dateKey] = {
+                day: dayName,
+                amount: 0,
+                date: dateKey,
+            };
+        }
+
+        acc[dateKey].amount += expense.amount;
+        return acc;
+    }, {} as Record<string, DailySpendingData>);
+
+    // Generate all 7 days (from 6 days ago to today) with proper ordering
+    const dailyData: DailySpendingData[] = [];
+    for (let i = 6; i >= 0; i--) {
+        const targetDate = moment().subtract(i, "days");
+        const dateKey = targetDate.format("YYYY-MM-DD");
+        const dayName = targetDate.format("ddd");
+
+        const dayData = dailyMap[dateKey] || {
+            day: dayName,
+            amount: 0,
+            date: dateKey,
+        };
+
+        dailyData.push(dayData);
+    }
+
+    return dailyData;
 }
 

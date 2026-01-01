@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
-import { useGetTransactionStatsQuery, useGetTransactionGraphQuery, useGetIncomeExpenseSavingsQuery } from "@/redux/api/statsApi";
+import { useGetTransactionStatsQuery, useGetTransactionGraphQuery, useGetIncomeExpenseSavingsQuery, useGetDailySpendingQuery } from "@/redux/api/statsApi";
 import {
   Bar,
   BarChart,
@@ -64,13 +64,6 @@ const categoryTrends = [
   { month: "Dec", Food: 5500, Transport: 320, Shopping: 4000, Bills: 1500 },
 ];
 
-const weeklySpending = [
-  { week: "Week 1", amount: 850 },
-  { week: "Week 2", amount: 920 },
-  { week: "Week 3", amount: 780 },
-  { week: "Week 4", amount: 1100 },
-  { week: "Week 5", amount: 1100 },
-];
 
 
 export default function ReportsPage() {
@@ -170,8 +163,25 @@ export default function ReportsPage() {
     }
   );
 
+  // Get daily spending stats (last 7 days)
+  const {
+    data: dailySpendingResponse,
+    isLoading: isDailySpendingLoading,
+  } = useGetDailySpendingQuery(
+    {
+      accountId: defaultAccountId || "",
+    },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
   // Use API data for graph, fallback to empty array if loading or no data
   const monthlyData = graphResponse?.data || [];
+
+  // Use API data for daily spending, fallback to empty array if loading or no data
+  const dailySpending = dailySpendingResponse?.data || [];
 
   // Transform API data for pie chart
   const pieData = incomeExpenseSavingsResponse?.data
@@ -638,49 +648,59 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      {/* Category Trends and Weekly Spending */}
+      {/* Category Trends and Daily Spending */}
       <div className="grid gap-4 grid-cols-1 md:gap-6 lg:grid-cols-8">
         <Card className="col-span-full lg:col-span-3 border-[var(--border)] bg-[var(--card)] shadow-sm">
           <CardHeader>
-            <CardTitle>Weekly Spending Pattern</CardTitle>
+            <CardTitle>Daily Spending Pattern</CardTitle>
             <CardDescription>
-              Your spending pattern throughout the month
+              Your spending pattern for the last 7 days
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                amount: {
-                  label: "Amount",
-                  color: "#6366f1",
-                },
-              }}
-              className="h-[250px] md:h-[300px] w-full"
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklySpending} barCategoryGap="20%" barGap={2}>
-                  <XAxis
-                    dataKey="week"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                    tickFormatter={(value) => `${value}`}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar
-                    dataKey="amount"
-                    fill="#6366f1"
-                    radius={[6, 6, 0, 0]}
-                    barSize={10}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
+            {isDailySpendingLoading ? (
+              <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground">
+                Loading daily spending...
+              </div>
+            ) : dailySpending.length === 0 ? (
+              <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground">
+                No data available
+              </div>
+            ) : (
+              <ChartContainer
+                config={{
+                  amount: {
+                    label: "Amount",
+                    color: "#6366f1",
+                  },
+                }}
+                className="h-[250px] md:h-[300px] w-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailySpending} barCategoryGap="20%" barGap={2}>
+                    <XAxis
+                      dataKey="day"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                      tickFormatter={(value) => `₹${value}`}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar
+                      dataKey="amount"
+                      fill="#6366f1"
+                      radius={[6, 6, 0, 0]}
+                      barSize={10}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
         <Card className="col-span-full lg:col-span-5 border-[var(--border)] bg-[var(--card)] shadow-sm">
