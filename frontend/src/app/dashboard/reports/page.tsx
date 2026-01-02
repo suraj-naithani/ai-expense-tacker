@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useDefaultAccount } from "@/hooks/useDefaultAccount";
-import { useGetTransactionStatsQuery, useGetTransactionGraphQuery, useGetIncomeExpenseSavingsQuery, useGetDailySpendingQuery } from "@/redux/api/statsApi";
+import { useGetTransactionStatsQuery, useGetTransactionGraphQuery, useGetIncomeExpenseSavingsQuery, useGetDailySpendingQuery, useGetCategorySpendingQuery } from "@/redux/api/statsApi";
 import {
   Bar,
   BarChart,
@@ -49,20 +49,6 @@ import {
 } from "recharts";
 
 
-const categoryTrends = [
-  { month: "Jan", Food: 4000, Transport: 320, Shopping: 2400, Bills: 1600 },
-  { month: "Feb", Food: 3000, Transport: 280, Shopping: 1398, Bills: 1602 },
-  { month: "Mar", Food: 2000, Transport: 350, Shopping: 980, Bills: 1020 },
-  { month: "Apr", Food: 2780, Transport: 300, Shopping: 3908, Bills: 1128 },
-  { month: "May", Food: 1890, Transport: 380, Shopping: 4800, Bills: 2910 },
-  { month: "Jun", Food: 2390, Transport: 320, Shopping: 3800, Bills: 1410 },
-  { month: "Jul", Food: 3490, Transport: 520, Shopping: 4300, Bills: 810 },
-  { month: "Aug", Food: 4200, Transport: 620, Shopping: 2800, Bills: 1400 },
-  { month: "Sep", Food: 3800, Transport: 720, Shopping: 2100, Bills: 1700 },
-  { month: "Oct", Food: 4500, Transport: 920, Shopping: 3000, Bills: 1500 },
-  { month: "Nov", Food: 5000, Transport: 220, Shopping: 3500, Bills: 1500 },
-  { month: "Dec", Food: 5500, Transport: 320, Shopping: 4000, Bills: 1500 },
-];
 
 
 
@@ -163,7 +149,6 @@ export default function ReportsPage() {
     }
   );
 
-  // Get daily spending stats (last 7 days)
   const {
     data: dailySpendingResponse,
     isLoading: isDailySpendingLoading,
@@ -182,6 +167,42 @@ export default function ReportsPage() {
 
   // Use API data for daily spending, fallback to empty array if loading or no data
   const dailySpending = dailySpendingResponse?.data || [];
+
+  // Get category spending stats
+  const {
+    data: categorySpendingResponse,
+    isLoading: isCategorySpendingLoading,
+  } = useGetCategorySpendingQuery(
+    {
+      accountId: defaultAccountId || "",
+    },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  // Use API data for category spending, fallback to empty array if loading or no data
+  const categoryTrends = categorySpendingResponse?.data || [];
+
+  // Generate dynamic chart config based on categories from API
+  const colors = ["#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ec4899", "#6366f1", "#14b8a6", "#ef4444"];
+
+  // Get all unique category names (excluding 'month')
+  const categoryNames = [
+    ...new Set(
+      categoryTrends.flatMap((item) => Object.keys(item).filter((key) => key !== "month"))
+    )
+  ];
+
+  // Create chart config with colors
+  const categoryChartConfig = categoryNames.reduce((config, catName, index) => {
+    config[catName] = {
+      label: catName,
+      color: colors[index % colors.length],
+    };
+    return config;
+  }, {} as Record<string, { label: string; color: string }>);
 
   // Transform API data for pie chart
   const pieData = incomeExpenseSavingsResponse?.data
@@ -252,10 +273,10 @@ export default function ReportsPage() {
                   <SelectValue placeholder="Period" />
                 </SelectTrigger>
                 <SelectContent className="border-[var(--border)] bg-[var(--card)]">
-                  <SelectItem value="monthly">Last Month</SelectItem>
-                  <SelectItem value="3months">Last 3 Months</SelectItem>
-                  <SelectItem value="6months">Last 6 Months</SelectItem>
-                  <SelectItem value="yearly">Last Year</SelectItem>
+                  <SelectItem value="monthly">Month</SelectItem>
+                  <SelectItem value="3months">3 Months</SelectItem>
+                  <SelectItem value="6months">6 Months</SelectItem>
+                  <SelectItem value="yearly">Year</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
@@ -711,62 +732,37 @@ export default function ReportsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={{
-                Food: {
-                  label: "Food",
-                  color: "#8b5cf6",
-                },
-                Transport: {
-                  label: "Transport",
-                  color: "#06b6d4",
-                },
-                Shopping: {
-                  label: "Shopping",
-                  color: "#f59e0b",
-                },
-                Bills: {
-                  label: "Bills",
-                  color: "#ef4444",
-                },
-              }}
-              className="h-[300px] w-full"
-            >
-              <LineChart data={categoryTrends}>
-                <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                <YAxis axisLine={false} tickLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <ChartLegend wrapperStyle={{ bottom: -10 }} />
-                <Line
-                  type="monotone"
-                  dot={false}
-                  dataKey="Food"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dot={false}
-                  dataKey="Transport"
-                  stroke="#06b6d4"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dot={false}
-                  dataKey="Shopping"
-                  stroke="#f59e0b"
-                  strokeWidth={2}
-                />
-                <Line
-                  type="monotone"
-                  dot={false}
-                  dataKey="Bills"
-                  stroke="#ef4444"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ChartContainer>
+            {isCategorySpendingLoading ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-muted-foreground">Loading category spending data...</p>
+              </div>
+            ) : categoryTrends.length === 0 ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <p className="text-muted-foreground">No category spending data available</p>
+              </div>
+            ) : (
+              <ChartContainer
+                config={categoryChartConfig}
+                className="h-[300px] w-full"
+              >
+                <LineChart data={categoryTrends}>
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend wrapperStyle={{ bottom: -10 }} />
+                  {categoryNames.map((categoryName) => (
+                    <Line
+                      key={categoryName}
+                      type="monotone"
+                      dot={false}
+                      dataKey={categoryName}
+                      stroke={categoryChartConfig[categoryName]?.color || "#8b5cf6"}
+                      strokeWidth={2}
+                    />
+                  ))}
+                </LineChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
       </div>

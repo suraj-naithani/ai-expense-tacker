@@ -113,3 +113,12 @@ export interface IncomeExpenseSavingsData {
     };
 }
 
+export interface CategorySpendingQueryParams {
+    accountId?: string;
+}
+
+export interface CategorySpendingData {
+    month: string; // "Jan", "Feb", etc.
+    [categoryName: string]: string | number; // Dynamic category names as keys with amounts as values (month is string, others are number)
+}
+

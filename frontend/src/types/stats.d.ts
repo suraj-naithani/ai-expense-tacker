@@ -122,3 +122,18 @@ export interface DailySpendingResponse {
     data: DailySpendingData[];
 }
 
+export interface CategorySpendingQueryParams {
+    accountId: string;
+}
+
+export interface CategorySpendingData {
+    month: string; // "Jan", "Feb", etc.
+    [categoryName: string]: number; // Dynamic category names as keys with amounts as values
+}
+
+export interface CategorySpendingResponse {
+    success: boolean;
+    message: string;
+    data: CategorySpendingData[];
+}
+

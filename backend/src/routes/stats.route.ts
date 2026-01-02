@@ -7,6 +7,7 @@ import {
     getTransactionGraphStats,
     getIncomeExpenseSavingsStatsController,
     getDailySpendingStatsController,
+    getCategorySpendingStatsController,
 } from "../controllers/stats.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -21,6 +22,8 @@ app.get("/transaction/graph", getTransactionGraphStats);
 app.get("/income-expense-savings", getIncomeExpenseSavingsStatsController);
 
 app.get("/daily-spending", getDailySpendingStatsController);
+
+app.get("/category-spending", getCategorySpendingStatsController);
 
 app.get("/payment", getPaymentStats);
 

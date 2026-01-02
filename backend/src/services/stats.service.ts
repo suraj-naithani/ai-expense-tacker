@@ -2,7 +2,7 @@ import { prisma } from "../utils/connection.js";
 import { Prisma } from "@prisma/client";
 import moment from "moment";
 import { calculatePreviousDateRange, calculatePercentageChange } from "../utils/statsHelper.js";
-import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData, DailySpendingData } from "../types/stats.js";
+import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData, DailySpendingData, CategorySpendingData } from "../types/stats.js";
 import { PaymentStatus } from "../types/payment.js";
 
 export async function calculateTransactionStats(
@@ -277,8 +277,8 @@ export async function getTransactionGraphData(
     return monthlyData;
 }
 
-/**
- * Calculate income, expenses, and savings with percentages for a given time period
+    /**
+     * Calculate income, expenses, and savings with percentages for a given time period
  */
 export async function getIncomeExpenseSavingsStats(
     userId: string,
@@ -322,8 +322,6 @@ export async function getIncomeExpenseSavingsStats(
     const expenses = expenseStats._sum.amount || 0;
     const savings = income - expenses;
 
-    // Calculate percentages based on total (income + expenses + savings)
-    // Since savings = income - expenses, total = income + expenses + (income - expenses) = 2 * income
     const total = income + expenses + savings; // This equals 2 * income when savings = income - expenses
 
     const incomePercentage = total > 0 ? (income / total) * 100 : 0;
@@ -346,11 +344,6 @@ export async function getIncomeExpenseSavingsStats(
     };
 }
 
-/**
- * Get daily spending for the last 7 days (including today)
- * Returns expenses grouped by day from 6 days ago to today
- * Optimized using Prisma native methods with reduce for efficient in-memory grouping
- */
 export async function getDailySpendingStats(
     userId: string,
     accountId?: string
@@ -412,5 +405,88 @@ export async function getDailySpendingStats(
     }
 
     return dailyData;
+}
+
+export async function getCategorySpendingStats(
+    userId: string,
+    accountId: string
+): Promise<CategorySpendingData[]> {
+    const startDate = moment().subtract(11, "months").startOf("month").toDate();
+    const endDate = moment().endOf("month").toDate();
+
+    const allCategories = await prisma.category.findMany({
+        where: { userId },
+        select: {
+            name: true,
+        },
+    });
+
+    const categoryNames = new Set<string>(allCategories.map((cat) => cat.name));
+
+    const whereClause: any = {
+        userId,
+        isRecurring: false,
+        type: "EXPENSE",
+        categoryId: { not: null },
+        accountId,
+        createdAt: {
+            gte: startDate,
+            lte: endDate,
+        },
+    };
+
+    const expenses = await prisma.transaction.findMany({
+        where: whereClause,
+        select: {
+            amount: true,
+            createdAt: true,
+            category: {
+                select: {
+                    name: true,
+                },
+            },
+        },
+    });
+
+    const monthlyMap = expenses.reduce((acc, expense) => {
+        if (!expense.category?.name) return acc;
+
+        const monthKey = moment(expense.createdAt).format("YYYY-MM");
+        const monthLabel = moment(expense.createdAt).format("MMM");
+        const categoryName = expense.category.name;
+
+        if (!acc[monthKey]) {
+            acc[monthKey] = {
+                month: monthLabel,
+            } as CategorySpendingData;
+            categoryNames.forEach((catName) => {
+                (acc[monthKey] as any)[catName] = 0;
+            });
+        }
+
+        (acc[monthKey] as any)[categoryName] = ((acc[monthKey] as any)[categoryName] || 0) + expense.amount;
+        return acc;
+    }, {} as Record<string, CategorySpendingData>);
+
+    const categorySpendingData: CategorySpendingData[] = [];
+    for (let i = 11; i >= 0; i--) {
+        const targetDate = moment().subtract(i, "months");
+        const monthKey = targetDate.format("YYYY-MM");
+        const monthLabel = targetDate.format("MMM");
+
+        const monthData = monthlyMap[monthKey] || {
+            month: monthLabel,
+        } as CategorySpendingData;
+
+        categoryNames.forEach((catName) => {
+            if (!(catName in monthData)) {
+                (monthData as any)[catName] = 0;
+            }
+        });
+
+        categorySpendingData.push(monthData);
+    }
+
+    return categorySpendingData;
 }
 

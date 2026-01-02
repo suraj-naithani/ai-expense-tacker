@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { prisma } from "../utils/connection.js";
 import { calculateDateRange } from "../utils/statsHelper.js";
-import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData, getIncomeExpenseSavingsStats, getDailySpendingStats } from "../services/stats.service.js";
-import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, IncomeExpenseSavingsQueryParams, DailySpendingQueryParams } from "../types/stats.js";
+import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData, getIncomeExpenseSavingsStats, getDailySpendingStats, getCategorySpendingStats } from "../services/stats.service.js";
+import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, IncomeExpenseSavingsQueryParams, DailySpendingQueryParams, CategorySpendingQueryParams } from "../types/stats.js";
 
 // Transaction Stats
 export const getTransactionStats = async (req: Request, res: Response) => {
@@ -244,6 +244,36 @@ export const getDailySpendingStatsController = async (req: Request, res: Respons
         res.status(500).json({
             success: false,
             message: error.message || "Failed to fetch daily spending stats",
+        });
+    }
+};
+
+// Category Spending Stats
+export const getCategorySpendingStatsController = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+
+    try {
+        const { accountId } = req.query as { accountId?: string };
+
+        if (!accountId) {
+            return res.status(400).json({
+                success: false,
+                message: "accountId is required",
+            });
+        }
+
+        const categorySpending = await getCategorySpendingStats(userId, accountId);
+
+        res.status(200).json({
+            success: true,
+            message: "Category spending stats retrieved successfully",
+            data: categorySpending,
+        });
+    } catch (error: any) {
+        console.error("Get category spending stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message || "Failed to fetch category spending stats",
         });
     }
 };

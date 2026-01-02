@@ -11,6 +11,8 @@ import {
     IncomeExpenseSavingsQueryParams,
     DailySpendingResponse,
     DailySpendingQueryParams,
+    CategorySpendingResponse,
+    CategorySpendingQueryParams,
 } from "@/types/stats";
 
 export const statsApi = createApi({
@@ -73,6 +75,15 @@ export const statsApi = createApi({
             }),
             providesTags: ["Stats"],
         }),
+        getCategorySpending: builder.query<CategorySpendingResponse, CategorySpendingQueryParams>({
+            query: (params) => ({
+                url: "category-spending",
+                params: {
+                    accountId: params.accountId,
+                },
+            }),
+            providesTags: ["Stats"],
+        }),
     }),
 });
 
@@ -82,5 +93,6 @@ export const {
     useGetTransactionGraphQuery,
     useGetIncomeExpenseSavingsQuery,
     useGetDailySpendingQuery,
+    useGetCategorySpendingQuery,
 } = statsApi;
 
