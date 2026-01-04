@@ -1,10 +1,8 @@
 import { Request, Response } from "express";
-import { prisma } from "../utils/connection.js";
+import { calculatePaymentStats, getCategorySpendingDistribution, getCategorySpendingStats, getDailySpendingStats, getIncomeExpenseSavingsStats, getTransactionGraphData, getTransactionStatsWithComparison, getYearlyMonthlySpendingStats } from "../services/stats.service.js";
+import { DailySpendingQueryParams, IncomeExpenseSavingsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, TransactionStatsQueryParams } from "../types/stats.js";
 import { calculateDateRange, calculatePercentageChange } from "../utils/statsHelper.js";
-import { getTransactionStatsWithComparison, calculatePaymentStats, getTransactionGraphData, getIncomeExpenseSavingsStats, getDailySpendingStats, getCategorySpendingStats, getYearlyMonthlySpendingStats, getCategorySpendingDistribution } from "../services/stats.service.js";
-import { TransactionStatsQueryParams, PaymentStatsQueryParams, TransactionGraphQueryParams, IncomeExpenseSavingsQueryParams, DailySpendingQueryParams, CategorySpendingQueryParams } from "../types/stats.js";
 
-// Transaction Stats
 export const getTransactionStats = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
@@ -39,17 +37,16 @@ export const getTransactionStats = async (req: Request, res: Response) => {
 
         const stats = await getTransactionStatsWithComparison(userId, dateRange, accountId);
 
-        // Calculate period savings (income - expenses for the selected period)
         const periodSavings = stats.current.totalIncome - stats.current.totalExpenses;
 
         const responseData = {
-            totalBalance: stats.completeTotalBalance, // Complete all-time balance
-            periodSavings: periodSavings, // Savings for the selected period (income - expenses)
-            totalTransactions: stats.current.totalTransactions, // Monthly
-            totalIncome: stats.current.totalIncome, // Monthly
-            totalExpenses: stats.current.totalExpenses, // Monthly
-            incomeCount: stats.current.incomeCount, // Monthly
-            expenseCount: stats.current.expenseCount, // Monthly
+            totalBalance: stats.completeTotalBalance,
+            periodSavings: periodSavings,
+            totalTransactions: stats.current.totalTransactions,
+            totalIncome: stats.current.totalIncome,
+            totalExpenses: stats.current.totalExpenses,
+            incomeCount: stats.current.incomeCount,
+            expenseCount: stats.current.expenseCount,
             comparisons: stats.comparisons,
             periods: stats.periods,
             timeRange: timeRange || "monthly",
@@ -126,7 +123,6 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     }
 };
 
-// Payment Stats
 export const getPaymentStats = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
@@ -156,7 +152,6 @@ export const getPaymentStats = async (req: Request, res: Response) => {
     }
 };
 
-// Report Stats
 export const getReportStats = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
@@ -251,7 +246,6 @@ export const getIncomeExpenseSavingsStatsController = async (req: Request, res: 
     }
 };
 
-// Daily Spending Stats (Last 7 Days)
 export const getDailySpendingStatsController = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
@@ -281,12 +275,10 @@ export const getDailySpendingStatsController = async (req: Request, res: Respons
     }
 };
 
-// Daily Spending Stats for All Accounts (No accountId required)
 export const getAllAccountsDailySpendingStatsController = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
     try {
-        // No accountId required - will fetch for all accounts
         const dailySpending = await getDailySpendingStats(userId);
 
         res.status(200).json({
@@ -303,7 +295,6 @@ export const getAllAccountsDailySpendingStatsController = async (req: Request, r
     }
 };
 
-// Category Spending Stats
 export const getCategorySpendingStatsController = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
@@ -333,12 +324,10 @@ export const getCategorySpendingStatsController = async (req: Request, res: Resp
     }
 };
 
-// Category Spending Stats for All Accounts (No accountId required)
 export const getAllAccountsCategorySpendingStatsController = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
     try {
-        // No accountId required - will fetch for all accounts
         const categorySpending = await getCategorySpendingStats(userId);
 
         res.status(200).json({
@@ -355,12 +344,10 @@ export const getAllAccountsCategorySpendingStatsController = async (req: Request
     }
 };
 
-// Yearly Monthly Spending Stats for All Accounts (No accountId required)
 export const getAllAccountsYearlyMonthlySpendingStatsController = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 
     try {
-        // No accountId required - will fetch for all accounts
         const monthlySpending = await getYearlyMonthlySpendingStats(userId);
 
         res.status(200).json({
@@ -377,7 +364,6 @@ export const getAllAccountsYearlyMonthlySpendingStatsController = async (req: Re
     }
 };
 
-// Category Spending Distribution (Current Month) - Requires accountId
 export const getCategorySpendingDistributionController = async (req: Request, res: Response) => {
     const userId = (req as any).user.id;
 

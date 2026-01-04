@@ -67,7 +67,7 @@ export interface TransactionGraphQueryParams {
 }
 
 export interface MonthlyGraphData {
-    month: string; // Format: "YYYY-MM" or "MMM YYYY"
+    month: string;
     income: number;
     expense: number;
     savings: number;
@@ -82,9 +82,9 @@ export interface DailySpendingQueryParams {
 }
 
 export interface DailySpendingData {
-    day: string; // Day name: "Sun", "Mon", etc.
-    amount: number; // Total expense for that day
-    date: string; // Date in YYYY-MM-DD format
+    day: string;
+    amount: number;
+    date: string;
 }
 
 export interface DailySpendingResponse {
@@ -118,7 +118,16 @@ export interface CategorySpendingQueryParams {
 }
 
 export interface CategorySpendingData {
-    month: string; // "Jan", "Feb", etc.
-    [categoryName: string]: string | number; // Dynamic category names as keys with amounts as values (month is string, others are number)
+    month: string;
+    [categoryName: string]: string | number;
 }
 
+export interface MonthlySpendingData {
+    month: string;
+    amount: number;
+}
+
+export interface CategorySpendingDistributionData {
+    category: string;
+    amount: number;
+}

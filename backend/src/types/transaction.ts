@@ -2,6 +2,25 @@ export type TransactionType = "EXPENSE" | "INCOME";
 
 export type RecurringInterval = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
+export interface TemplateInput {
+    userId: string;
+    accountId: string;
+    categoryId?: string;
+    amount: number;
+    type: TransactionType;
+    description?: string;
+    recurringInterval: RecurringInterval;
+}
+
+export interface OneTimeTransactionInput {
+    userId: string;
+    accountId: string;
+    categoryId?: string;
+    amount: number;
+    type: TransactionType;
+    description?: string;
+}
+
 export interface CreateTransactionRequest {
     accountId: string;
     categoryId?: string;

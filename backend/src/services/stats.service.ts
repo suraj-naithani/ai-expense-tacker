@@ -2,7 +2,7 @@ import { prisma } from "../utils/connection.js";
 import { Prisma } from "@prisma/client";
 import moment from "moment";
 import { calculatePreviousDateRange, calculatePercentageChange } from "../utils/statsHelper.js";
-import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData, DailySpendingData, CategorySpendingData } from "../types/stats.js";
+import { DateRange, TransactionStats, TransactionStatsWithComparison, PaymentStats, MonthlyGraphData, IncomeExpenseSavingsData, DailySpendingData, CategorySpendingData, MonthlySpendingData, CategorySpendingDistributionData } from "../types/stats.js";
 import { PaymentStatus } from "../types/payment.js";
 
 export async function calculateTransactionStats(
@@ -68,10 +68,6 @@ export async function calculateTransactionStats(
     };
 }
 
-/**
- * Calculate complete total balance (all-time) for a user/account
- * Optimized to use a single aggregation query
- */
 async function calculateCompleteTotalBalance(
     userId: string,
     accountId?: string
@@ -115,7 +111,6 @@ export async function getTransactionStatsWithComparison(
 ): Promise<TransactionStatsWithComparison & { completeTotalBalance: number }> {
     const previousRange = calculatePreviousDateRange(currentRange);
 
-    // Calculate all stats in parallel for optimal performance
     const [currentStats, previousStats, completeTotalBalance] = await Promise.all([
         calculateTransactionStats(userId, currentRange, accountId),
         calculateTransactionStats(userId, previousRange, accountId),
@@ -158,7 +153,7 @@ export async function getTransactionStatsWithComparison(
                 end: previousRange.endDate.toISOString(),
             },
         },
-        completeTotalBalance, // All-time total balance
+        completeTotalBalance,
     };
 }
 
@@ -213,7 +208,6 @@ export async function getTransactionGraphData(
     userId: string,
     accountId?: string
 ): Promise<MonthlyGraphData[]> {
-    // Calculate date range for last 12 months
     const startDate = moment().subtract(11, "months").startOf("month").toDate();
     const endDate = moment().endOf("month").toDate();
 
@@ -227,7 +221,6 @@ export async function getTransactionGraphData(
         ...(accountId && { accountId }),
     };
 
-    // Single Prisma query to fetch all transactions
     const transactions = await prisma.transaction.findMany({
         where: whereClause,
         select: {
@@ -237,7 +230,6 @@ export async function getTransactionGraphData(
         },
     });
 
-    // Use reduce to group by month and aggregate - more efficient than forEach
     const monthlyMap = transactions.reduce((acc, transaction) => {
         const monthKey = moment(transaction.createdAt).format("YYYY-MM");
         const monthLabel = moment(transaction.createdAt).format("MMM");
@@ -255,7 +247,6 @@ export async function getTransactionGraphData(
         return acc;
     }, {} as Record<string, { income: number; expense: number; monthLabel: string }>);
 
-    // Generate all 12 months with proper ordering
     const monthlyData: MonthlyGraphData[] = [];
     for (let i = 11; i >= 0; i--) {
         const targetDate = moment().subtract(i, "months");
@@ -319,7 +310,7 @@ export async function getIncomeExpenseSavingsStats(
     const expenses = expenseStats._sum.amount || 0;
     const savings = income - expenses;
 
-    const total = income + expenses + savings; // This equals 2 * income when savings = income - expenses
+    const total = income + expenses + savings;
 
     const incomePercentage = total > 0 ? (income / total) * 100 : 0;
     const expensesPercentage = total > 0 ? (expenses / total) * 100 : 0;
@@ -328,7 +319,7 @@ export async function getIncomeExpenseSavingsStats(
     return {
         income: {
             total: income,
-            percentage: Math.round(incomePercentage * 100) / 100, // Round to 2 decimal places
+            percentage: Math.round(incomePercentage * 100) / 100,
         },
         expenses: {
             total: expenses,
@@ -359,7 +350,6 @@ export async function getDailySpendingStats(
         ...(accountId && { accountId }),
     };
 
-    // Single Prisma query to fetch all expenses for the last 7 days
     const expenses = await prisma.transaction.findMany({
         where: whereClause,
         select: {
@@ -368,7 +358,6 @@ export async function getDailySpendingStats(
         },
     });
 
-    // Use reduce to group by day and aggregate - more efficient than forEach
     const dailyMap = expenses.reduce((acc, expense) => {
         const dateKey = moment(expense.createdAt).format("YYYY-MM-DD");
         const dayName = moment(expense.createdAt).format("ddd");
@@ -385,7 +374,6 @@ export async function getDailySpendingStats(
         return acc;
     }, {} as Record<string, DailySpendingData>);
 
-    // Generate all 7 days (from 6 days ago to today) with proper ordering
     const dailyData: DailySpendingData[] = [];
     for (let i = 6; i >= 0; i--) {
         const targetDate = moment().subtract(i, "days");
@@ -487,16 +475,10 @@ export async function getCategorySpendingStats(
     return categorySpendingData;
 }
 
-export interface MonthlySpendingData {
-    month: string; // Format: "Jan", "Feb", etc.
-    amount: number;
-}
-
 export async function getYearlyMonthlySpendingStats(
     userId: string,
     accountId?: string
 ): Promise<MonthlySpendingData[]> {
-    // Get start date: same month last year (e.g., if today is June 2024, start from July 2023)
     const startDate = moment().subtract(11, "months").startOf("month").toDate();
     const endDate = moment().endOf("month").toDate();
 
@@ -511,7 +493,6 @@ export async function getYearlyMonthlySpendingStats(
         ...(accountId && { accountId }),
     };
 
-    // Fetch all expenses for the last 12 months
     const expenses = await prisma.transaction.findMany({
         where: whereClause,
         select: {
@@ -520,7 +501,6 @@ export async function getYearlyMonthlySpendingStats(
         },
     });
 
-    // Group expenses by month
     const monthlyMap = expenses.reduce((acc, expense) => {
         const monthKey = moment(expense.createdAt).format("YYYY-MM");
         const monthLabel = moment(expense.createdAt).format("MMM");
@@ -536,7 +516,6 @@ export async function getYearlyMonthlySpendingStats(
         return acc;
     }, {} as Record<string, MonthlySpendingData>);
 
-    // Generate all 12 months (from 11 months ago to current month) with proper ordering
     const monthlyData: MonthlySpendingData[] = [];
     for (let i = 11; i >= 0; i--) {
         const targetDate = moment().subtract(i, "months");
@@ -554,16 +533,10 @@ export async function getYearlyMonthlySpendingStats(
     return monthlyData;
 }
 
-export interface CategorySpendingDistributionData {
-    category: string;
-    amount: number;
-}
-
 export async function getCategorySpendingDistribution(
     userId: string,
     accountId: string
 ): Promise<CategorySpendingDistributionData[]> {
-    // Get current month's start and end dates
     const startDate = moment().startOf("month").toDate();
     const endDate = moment().endOf("month").toDate();
 
