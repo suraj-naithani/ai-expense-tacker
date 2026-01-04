@@ -277,9 +277,6 @@ export async function getTransactionGraphData(
     return monthlyData;
 }
 
-    /**
-     * Calculate income, expenses, and savings with percentages for a given time period
- */
 export async function getIncomeExpenseSavingsStats(
     userId: string,
     dateRange: DateRange,
@@ -409,7 +406,7 @@ export async function getDailySpendingStats(
 
 export async function getCategorySpendingStats(
     userId: string,
-    accountId: string
+    accountId?: string
 ): Promise<CategorySpendingData[]> {
     const startDate = moment().subtract(11, "months").startOf("month").toDate();
     const endDate = moment().endOf("month").toDate();
@@ -428,7 +425,7 @@ export async function getCategorySpendingStats(
         isRecurring: false,
         type: "EXPENSE",
         categoryId: { not: null },
-        accountId,
+        ...(accountId && { accountId }),
         createdAt: {
             gte: startDate,
             lte: endDate,
@@ -490,3 +487,124 @@ export async function getCategorySpendingStats(
     return categorySpendingData;
 }
 
+export interface MonthlySpendingData {
+    month: string; // Format: "Jan", "Feb", etc.
+    amount: number;
+}
+
+export async function getYearlyMonthlySpendingStats(
+    userId: string,
+    accountId?: string
+): Promise<MonthlySpendingData[]> {
+    // Get start date: same month last year (e.g., if today is June 2024, start from July 2023)
+    const startDate = moment().subtract(11, "months").startOf("month").toDate();
+    const endDate = moment().endOf("month").toDate();
+
+    const whereClause: any = {
+        userId,
+        isRecurring: false,
+        type: "EXPENSE",
+        createdAt: {
+            gte: startDate,
+            lte: endDate,
+        },
+        ...(accountId && { accountId }),
+    };
+
+    // Fetch all expenses for the last 12 months
+    const expenses = await prisma.transaction.findMany({
+        where: whereClause,
+        select: {
+            amount: true,
+            createdAt: true,
+        },
+    });
+
+    // Group expenses by month
+    const monthlyMap = expenses.reduce((acc, expense) => {
+        const monthKey = moment(expense.createdAt).format("YYYY-MM");
+        const monthLabel = moment(expense.createdAt).format("MMM");
+
+        if (!acc[monthKey]) {
+            acc[monthKey] = {
+                month: monthLabel,
+                amount: 0,
+            };
+        }
+
+        acc[monthKey].amount += expense.amount;
+        return acc;
+    }, {} as Record<string, MonthlySpendingData>);
+
+    // Generate all 12 months (from 11 months ago to current month) with proper ordering
+    const monthlyData: MonthlySpendingData[] = [];
+    for (let i = 11; i >= 0; i--) {
+        const targetDate = moment().subtract(i, "months");
+        const monthKey = targetDate.format("YYYY-MM");
+        const monthLabel = targetDate.format("MMM");
+
+        const monthData = monthlyMap[monthKey] || {
+            month: monthLabel,
+            amount: 0,
+        };
+
+        monthlyData.push(monthData);
+    }
+
+    return monthlyData;
+}
+
+export interface CategorySpendingDistributionData {
+    category: string;
+    amount: number;
+}
+
+export async function getCategorySpendingDistribution(
+    userId: string,
+    accountId: string
+): Promise<CategorySpendingDistributionData[]> {
+    // Get current month's start and end dates
+    const startDate = moment().startOf("month").toDate();
+    const endDate = moment().endOf("month").toDate();
+
+    const whereClause: any = {
+        userId,
+        isRecurring: false,
+        type: "EXPENSE",
+        categoryId: { not: null },
+        accountId,
+        createdAt: {
+            gte: startDate,
+            lte: endDate,
+        },
+    };
+
+    const expenses = await prisma.transaction.findMany({
+        where: whereClause,
+        select: {
+            amount: true,
+            category: {
+                select: {
+                    name: true,
+                },
+            },
+        },
+    });
+
+    const categoryMap = expenses.reduce((acc, expense) => {
+        if (!expense.category?.name) return acc;
+
+        const categoryName = expense.category.name;
+        acc[categoryName] = (acc[categoryName] || 0) + expense.amount;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const distributionData: CategorySpendingDistributionData[] = Object.entries(categoryMap).map(
+        ([categoryName, amount]) => ({
+            category: categoryName,
+            amount: amount,
+        })
+    );
+
+    return distributionData;
+}

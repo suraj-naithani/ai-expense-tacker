@@ -13,6 +13,10 @@ import {
     DailySpendingQueryParams,
     CategorySpendingResponse,
     CategorySpendingQueryParams,
+    DashboardStatsResponse,
+    MonthlySpendingResponse,
+    CategorySpendingDistributionResponse,
+    CategorySpendingDistributionQueryParams,
 } from "@/types/stats";
 
 export const statsApi = createApi({
@@ -84,6 +88,39 @@ export const statsApi = createApi({
             }),
             providesTags: ["Stats"],
         }),
+        getDashboardStats: builder.query<DashboardStatsResponse, void>({
+            query: () => ({
+                url: "dashboard",
+            }),
+            providesTags: ["Stats"],
+        }),
+        getAllAccountsDailySpending: builder.query<DailySpendingResponse, void>({
+            query: () => ({
+                url: "dashboard/daily-spending",
+            }),
+            providesTags: ["Stats"],
+        }),
+        getAllAccountsCategorySpending: builder.query<CategorySpendingResponse, void>({
+            query: () => ({
+                url: "dashboard/category-spending",
+            }),
+            providesTags: ["Stats"],
+        }),
+        getAllAccountsYearlyMonthlySpending: builder.query<MonthlySpendingResponse, void>({
+            query: () => ({
+                url: "dashboard/yearly-monthly-spending",
+            }),
+            providesTags: ["Stats"],
+        }),
+        getCategorySpendingDistribution: builder.query<CategorySpendingDistributionResponse, CategorySpendingDistributionQueryParams>({
+            query: (params) => ({
+                url: "category-spending-distribution",
+                params: {
+                    accountId: params.accountId,
+                },
+            }),
+            providesTags: ["Stats"],
+        }),
     }),
 });
 
@@ -94,5 +131,10 @@ export const {
     useGetIncomeExpenseSavingsQuery,
     useGetDailySpendingQuery,
     useGetCategorySpendingQuery,
+    useGetDashboardStatsQuery,
+    useGetAllAccountsDailySpendingQuery,
+    useGetAllAccountsCategorySpendingQuery,
+    useGetAllAccountsYearlyMonthlySpendingQuery,
+    useGetCategorySpendingDistributionQuery,
 } = statsApi;
 

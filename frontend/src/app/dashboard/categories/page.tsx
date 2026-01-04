@@ -42,20 +42,13 @@ import {
   useUpdateCategoryMutation,
   useDeleteCategoryMutation,
 } from "@/redux/api/categoryApi";
+import { useGetCategorySpendingDistributionQuery } from "@/redux/api/statsApi";
+import { useDefaultAccount } from "@/hooks/useDefaultAccount";
+import { useMemo } from "react";
 import type { Category } from "@/types/category";
 
-const categoryData = [
-  { category: "Food", amount: 450, percentage: 32.1, color: "#3b82f6" },
-  { category: "Transport", amount: 280, percentage: 20.0, color: "#8b5cf6" },
-  {
-    category: "Entertainment",
-    amount: 150,
-    percentage: 10.7,
-    color: "#10b981",
-  },
-  { category: "Shopping", amount: 320, percentage: 22.9, color: "#f59e0b" },
-  { category: "Bills", amount: 200, percentage: 14.3, color: "#ef4444" },
-];
+// Colors for category charts
+const colors = ["#8b5cf6", "#06b6d4", "#f59e0b", "#10b981", "#ec4899", "#6366f1", "#14b8a6", "#ef4444", "#3b82f6", "#f97316"];
 
 const categories = [
   {
@@ -136,12 +129,45 @@ export default function Page() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
+  const defaultAccountId = useDefaultAccount();
+
   const { data: categoriesResponse, isLoading } = useGetCategoriesQuery();
   const [createCategory] = useCreateCategoryMutation();
   const [updateCategory] = useUpdateCategoryMutation();
   const [deleteCategory] = useDeleteCategoryMutation();
 
   const apiCategories: Category[] = categoriesResponse?.data || [];
+
+  // Get category spending distribution for current month
+  const {
+    data: categorySpendingDistributionResponse,
+    isLoading: isCategorySpendingDistributionLoading,
+  } = useGetCategorySpendingDistributionQuery(
+    {
+      accountId: defaultAccountId || "",
+    },
+    {
+      skip: !defaultAccountId,
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  // Use API data for category spending distribution, add colors and calculate percentages in frontend
+  const categoryData: Array<{ category: string; amount: number; percentage: number; color: string }> = useMemo(() => {
+    const data = categorySpendingDistributionResponse?.data || [];
+
+    // Filter out zero amounts, calculate total, and sort
+    const filteredData = data.filter((item) => item.amount > 0);
+    const total = filteredData.reduce((sum, item) => sum + item.amount, 0);
+    const sortedData = filteredData.sort((a, b) => b.amount - a.amount);
+
+    // Add percentages and colors
+    return sortedData.map((item, index) => ({
+      ...item,
+      percentage: total > 0 ? Math.round((item.amount / total) * 100 * 10) / 10 : 0,
+      color: colors[index % colors.length],
+    }));
+  }, [categorySpendingDistributionResponse?.data]);
 
   const totalBudget = 3800;
   const totalSpent = 3000;
@@ -469,33 +495,43 @@ export default function Page() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px] w-full">
-                <ChartContainer
-                  config={{
-                    amount: {
-                      label: "Amount",
-                    },
-                  }}
-                  className="h-full w-full"
-                >
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      dataKey="amount"
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </PieChart>
-                </ChartContainer>
-              </div>
+              {isCategorySpendingDistributionLoading ? (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  Loading...
+                </div>
+              ) : categoryData.length === 0 ? (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No data available
+                </div>
+              ) : (
+                <div className="h-[300px] w-full">
+                  <ChartContainer
+                    config={{
+                      amount: {
+                        label: "Amount",
+                      },
+                    }}
+                    className="h-full w-full"
+                  >
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={90}
+                        paddingAngle={2}
+                        dataKey="amount"
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ChartContainer>
+                </div>
+              )}
               <div className="space-y-3 flex-1 w-full">
                 {categoryData.map((item) => (
                   <div

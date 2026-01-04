@@ -27,7 +27,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -41,43 +41,7 @@ import {
   YAxis,
 } from "recharts";
 import { QuickAddExpenseDialog } from "@/components/dialog/QuickAddExpenseDialog";
-
-const spendingData = [
-  { month: "Jan", amount: 2400 },
-  { month: "Feb", amount: 1398 },
-  { month: "Mar", amount: 9800 },
-  { month: "Apr", amount: 3908 },
-  { month: "May", amount: 4800 },
-  { month: "Jun", amount: 3800 },
-  { month: "Jul", amount: 3462 },
-  { month: "Aug", amount: 3198 },
-  { month: "Sep", amount: 7593 },
-  { month: "Nov", amount: 4860 },
-  { month: "Dec", amount: 9800 },
-];
-
-const weeklyData = [
-  { week: "Mon", amount: 1200 },
-  { week: "Tues", amount: 1800 },
-  { week: "Wed", amount: 1600 },
-  { week: "Thurs", amount: 2200 },
-  { week: "Fri", amount: 2200 },
-  { week: "Sat", amount: 2200 },
-  { week: "Sun", amount: 2200 },
-];
-
-const categoryData = [
-  { category: "Food", amount: 450, percentage: 32.1, color: "#3b82f6" },
-  { category: "Transport", amount: 280, percentage: 20.0, color: "#8b5cf6" },
-  {
-    category: "Entertainment",
-    amount: 150,
-    percentage: 10.7,
-    color: "#10b981",
-  },
-  { category: "Shopping", amount: 320, percentage: 22.9, color: "#f59e0b" },
-  { category: "Bills", amount: 200, percentage: 14.3, color: "#ef4444" },
-];
+import { useGetDashboardStatsQuery, useGetAllAccountsDailySpendingQuery, useGetAllAccountsCategorySpendingQuery, useGetAllAccountsYearlyMonthlySpendingQuery } from "@/redux/api/statsApi";
 
 const recentTransactions = [
   {
@@ -135,6 +99,106 @@ const recentTransactions = [
 const Page = () => {
   const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
 
+  // Get dashboard stats
+  const {
+    data: dashboardStatsResponse,
+    isLoading: isDashboardStatsLoading,
+  } = useGetDashboardStatsQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
+
+  const dashboardStats = dashboardStatsResponse?.data;
+
+  // Get daily spending for all accounts
+  const {
+    data: dailySpendingResponse,
+    isLoading: isDailySpendingLoading,
+  } = useGetAllAccountsDailySpendingQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
+
+  // Use API data for weekly spending, fallback to empty array if loading or no data
+  const weeklySpendingData = dailySpendingResponse?.data || [];
+
+  // Get yearly monthly spending for all accounts
+  const {
+    data: yearlyMonthlySpendingResponse,
+    isLoading: isYearlyMonthlySpendingLoading,
+  } = useGetAllAccountsYearlyMonthlySpendingQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
+
+  // Use API data for spending trend, fallback to empty array if loading or no data
+  const spendingData = yearlyMonthlySpendingResponse?.data || [];
+
+  // Get category spending for all accounts
+  const {
+    data: categorySpendingResponse,
+    isLoading: isCategorySpendingLoading,
+  } = useGetAllAccountsCategorySpendingQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  });
+
+  // Transform category spending data for current month
+  const categoryData = useMemo(() => {
+    const categoryTrends = categorySpendingResponse?.data || [];
+    if (categoryTrends.length === 0) return [];
+
+    // Get current month (last item in array)
+    const currentMonth = categoryTrends[categoryTrends.length - 1];
+    if (!currentMonth) return [];
+
+    // Get all category names (excluding 'month')
+    const categoryNames = Object.keys(currentMonth).filter((key) => key !== "month");
+
+    // Calculate total for percentage calculation
+    const total = categoryNames.reduce((sum, catName) => {
+      return sum + (Number(currentMonth[catName]) || 0);
+    }, 0);
+
+    // Colors for categories
+    const colors = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#6366f1"];
+
+    // Transform to pie chart format
+    return categoryNames
+      .map((catName, index) => {
+        const amount = Number(currentMonth[catName]) || 0;
+        return {
+          category: catName,
+          amount: amount,
+          percentage: total > 0 ? Math.round((amount / total) * 100 * 10) / 10 : 0,
+          color: colors[index % colors.length],
+        };
+      })
+      .filter((item) => item.amount > 0) // Only show categories with spending
+      .sort((a, b) => b.amount - a.amount); // Sort by amount descending
+  }, [categorySpendingResponse?.data]);
+
+
+  // Get change color based on type
+  const getChangeColor = (type: "increase" | "decrease" | "no-change") => {
+    switch (type) {
+      case "increase":
+        return "text-[#4ade80]";
+      case "decrease":
+        return "text-[#f87171]";
+      default:
+        return "text-muted-foreground";
+    }
+  };
+
+  // Get change symbol
+  const getChangeSymbol = (type: "increase" | "decrease" | "no-change") => {
+    switch (type) {
+      case "increase":
+        return "+";
+      case "decrease":
+        return "";
+      default:
+        return "";
+    }
+  };
+
   return (
     <main className="flex-1 overflow-auto">
       <div className="space-y-6">
@@ -166,12 +230,32 @@ const Page = () => {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
-                ₹12,450.00
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-[#4ade80]">+2.5%</span> from last month
-              </p>
+              {isDashboardStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
+                  Loading...
+                </div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold text-[#4ade80]">
+                    {dashboardStats?.totalBalance
+                      ? `₹${dashboardStats.totalBalance.amount.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`
+                      : "₹0.00"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardStats?.totalBalance && (
+                      <span
+                        className={getChangeColor(
+                          dashboardStats.totalBalance.type
+                        )}
+                      >
+                        {getChangeSymbol(dashboardStats.totalBalance.type)}
+                        {dashboardStats.totalBalance.change.toFixed(1)}%
+                      </span>
+                    )}{" "}
+                    from last month
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -183,10 +267,30 @@ const Page = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold">₹5,200.00</div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-[#4ade80]">+12%</span> from last month
-              </p>
+              {isDashboardStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold">Loading...</div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold">
+                    {dashboardStats?.monthlyIncome
+                      ? `₹${dashboardStats.monthlyIncome.amount.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`
+                      : "₹0.00"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardStats?.monthlyIncome && (
+                      <span
+                        className={getChangeColor(
+                          dashboardStats.monthlyIncome.type
+                        )}
+                      >
+                        {getChangeSymbol(dashboardStats.monthlyIncome.type)}
+                        {dashboardStats.monthlyIncome.change.toFixed(1)}%
+                      </span>
+                    )}{" "}
+                    from last month
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -198,12 +302,32 @@ const Page = () => {
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#f87171]">
-                ₹3,840.00
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-[#f87171]">+8%</span> from last month
-              </p>
+              {isDashboardStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-[#f87171]">
+                  Loading...
+                </div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold text-[#f87171]">
+                    {dashboardStats?.monthlyExpense
+                      ? `₹${dashboardStats.monthlyExpense.amount.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}`
+                      : "₹0.00"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardStats?.monthlyExpense && (
+                      <span
+                        className={getChangeColor(
+                          dashboardStats.monthlyExpense.type
+                        )}
+                      >
+                        {getChangeSymbol(dashboardStats.monthlyExpense.type)}
+                        {dashboardStats.monthlyExpense.change.toFixed(1)}%
+                      </span>
+                    )}{" "}
+                    from last month
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -215,12 +339,32 @@ const Page = () => {
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold text-[#60a5fa]">
-                26%
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <span className="text-[#4ade80]">+3%</span> from last month
-              </p>
+              {isDashboardStatsLoading ? (
+                <div className="text-xl md:text-2xl font-bold text-[#60a5fa]">
+                  Loading...
+                </div>
+              ) : (
+                <>
+                  <div className="text-xl md:text-2xl font-bold text-[#60a5fa]">
+                    {dashboardStats?.savingsRate
+                      ? `${dashboardStats.savingsRate.percentage.toFixed(1)}%`
+                      : "0%"}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {dashboardStats?.savingsRate && (
+                      <span
+                        className={getChangeColor(
+                          dashboardStats.savingsRate.type
+                        )}
+                      >
+                        {getChangeSymbol(dashboardStats.savingsRate.type)}
+                        {dashboardStats.savingsRate.change.toFixed(1)}%
+                      </span>
+                    )}{" "}
+                    from last month
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -280,43 +424,53 @@ const Page = () => {
             <CardHeader>
               <CardTitle>Spending Trend</CardTitle>
               <CardDescription>
-                Your monthly spending over the last 6 months
+                Your monthly spending over the last 12 months
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer
-                config={{
-                  amount: {
-                    label: "Amount",
-                    color: "hsl(var(--chart-1))",
-                  },
-                }}
-                className="h-[250px] md:h-[300px] w-full"
-              >
-                <AreaChart data={spendingData}>
-                  <defs>
-                    <linearGradient id="fillAmount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop
-                        offset="95%"
-                        stopColor="#6366f1"
-                        stopOpacity={0.1}
-                      />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area
-                    type="monotone"
-                    dataKey="amount"
-                    stroke="#6366f1"
-                    fillOpacity={1}
-                    fill="url(#fillAmount)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
+              {isYearlyMonthlySpendingLoading ? (
+                <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground">
+                  Loading...
+                </div>
+              ) : spendingData.length === 0 ? (
+                <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground">
+                  No data available
+                </div>
+              ) : (
+                <ChartContainer
+                  config={{
+                    amount: {
+                      label: "Amount",
+                      color: "hsl(var(--chart-1))",
+                    },
+                  }}
+                  className="h-[250px] md:h-[300px] w-full"
+                >
+                  <AreaChart data={spendingData}>
+                    <defs>
+                      <linearGradient id="fillAmount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                        <stop
+                          offset="95%"
+                          stopColor="#6366f1"
+                          stopOpacity={0.1}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} />
+                    <YAxis axisLine={false} tickLine={false} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area
+                      type="monotone"
+                      dataKey="amount"
+                      stroke="#6366f1"
+                      fillOpacity={1}
+                      fill="url(#fillAmount)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
 
@@ -326,39 +480,49 @@ const Page = () => {
               <CardDescription>This last seven day breakdown</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer
-                config={{
-                  amount: {
-                    label: "Amount",
-                    color: "#6366f1",
-                  },
-                }}
-                className="h-[250px] md:h-[300px] w-full"
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyData} barCategoryGap="20%" barGap={2}>
-                    <XAxis
-                      dataKey="week"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "#a1a1aa", fontSize: 11 }}
-                      tickFormatter={(value) => `${value}`}
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="amount"
-                      fill="#6366f1"
-                      radius={[6, 6, 0, 0]}
-                      barSize={10}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
+              {isDailySpendingLoading ? (
+                <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground">
+                  Loading...
+                </div>
+              ) : weeklySpendingData.length === 0 ? (
+                <div className="h-[250px] md:h-[300px] flex items-center justify-center text-muted-foreground">
+                  No data available
+                </div>
+              ) : (
+                <ChartContainer
+                  config={{
+                    amount: {
+                      label: "Amount",
+                      color: "#6366f1",
+                    },
+                  }}
+                  className="h-[250px] md:h-[300px] w-full"
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklySpendingData} barCategoryGap="20%" barGap={2}>
+                      <XAxis
+                        dataKey="day"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: "#a1a1aa", fontSize: 11 }}
+                        tickFormatter={(value) => `₹${value}`}
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="amount"
+                        fill="#6366f1"
+                        radius={[6, 6, 0, 0]}
+                        barSize={10}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -428,59 +592,69 @@ const Page = () => {
               <CardDescription>{`This month's breakdown`}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-center mb-6 w-full flex-col lg:flex-row gap-4">
-                <div className="h-full w-full lg:h-[200px] lg:w-[200px] flex-1">
-                  <ChartContainer
-                    config={{
-                      amount: {
-                        label: "Amount",
-                      },
-                    }}
-                    className="h-full w-full"
-                  >
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={90}
-                        paddingAngle={2}
-                        dataKey="amount"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                    </PieChart>
-                  </ChartContainer>
+              {isCategorySpendingLoading ? (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  Loading...
                 </div>
-                <div className="space-y-3 flex-1 w-full">
-                  {categoryData.map((item) => (
-                    <div
-                      key={item.category}
-                      className="flex items-center justify-between"
+              ) : categoryData.length === 0 ? (
+                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                  No data available
+                </div>
+              ) : (
+                <div className="flex items-center justify-center mb-6 w-full flex-col lg:flex-row gap-4">
+                  <div className="h-full w-full lg:h-[200px] lg:w-[200px] flex-1">
+                    <ChartContainer
+                      config={{
+                        amount: {
+                          label: "Amount",
+                        },
+                      }}
+                      className="h-full w-full"
                     >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <span className="text-sm">{item.category}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">
-                          ₹{item.amount}
+                      <PieChart>
+                        <Pie
+                          data={categoryData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={90}
+                          paddingAngle={2}
+                          dataKey="amount"
+                        >
+                          {categoryData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ChartContainer>
+                  </div>
+                  <div className="space-y-3 flex-1 w-full">
+                    {categoryData.map((item) => (
+                      <div
+                        key={item.category}
+                        className="flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="text-sm">{item.category}</span>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {item.percentage}%
+                        <div className="text-right">
+                          <div className="text-sm font-medium">
+                            ₹{item.amount.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {item.percentage}%
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>

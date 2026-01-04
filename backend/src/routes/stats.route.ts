@@ -7,7 +7,11 @@ import {
     getTransactionGraphStats,
     getIncomeExpenseSavingsStatsController,
     getDailySpendingStatsController,
+    getAllAccountsDailySpendingStatsController,
     getCategorySpendingStatsController,
+    getAllAccountsCategorySpendingStatsController,
+    getAllAccountsYearlyMonthlySpendingStatsController,
+    getCategorySpendingDistributionController,
 } from "../controllers/stats.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -25,12 +29,19 @@ app.get("/daily-spending", getDailySpendingStatsController);
 
 app.get("/category-spending", getCategorySpendingStatsController);
 
+app.get("/category-spending-distribution", getCategorySpendingDistributionController);
+
 app.get("/payment", getPaymentStats);
 
 app.get("/report", getReportStats);
 
-// Dashboard stats route
 app.get("/dashboard", getDashboardStats);
+
+app.get("/dashboard/daily-spending", getAllAccountsDailySpendingStatsController);
+
+app.get("/dashboard/category-spending", getAllAccountsCategorySpendingStatsController);
+
+app.get("/dashboard/yearly-monthly-spending", getAllAccountsYearlyMonthlySpendingStatsController);
 
 export default app;
 

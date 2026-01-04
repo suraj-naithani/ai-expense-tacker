@@ -137,3 +137,58 @@ export interface CategorySpendingResponse {
     data: CategorySpendingData[];
 }
 
+export interface DashboardStatsData {
+    totalBalance: {
+        amount: number;
+        change: number;
+        type: "increase" | "decrease" | "no-change";
+    };
+    monthlyIncome: {
+        amount: number;
+        change: number;
+        type: "increase" | "decrease" | "no-change";
+    };
+    monthlyExpense: {
+        amount: number;
+        change: number;
+        type: "increase" | "decrease" | "no-change";
+    };
+    savingsRate: {
+        percentage: number;
+        change: number;
+        type: "increase" | "decrease" | "no-change";
+    };
+}
+
+export interface DashboardStatsResponse {
+    success: boolean;
+    message: string;
+    data: DashboardStatsData;
+}
+
+export interface MonthlySpendingData {
+    month: string; // Format: "Jan", "Feb", etc.
+    amount: number;
+}
+
+export interface MonthlySpendingResponse {
+    success: boolean;
+    message: string;
+    data: MonthlySpendingData[];
+}
+
+export interface CategorySpendingDistributionData {
+    category: string;
+    amount: number;
+}
+
+export interface CategorySpendingDistributionQueryParams {
+    accountId: string;
+}
+
+export interface CategorySpendingDistributionResponse {
+    success: boolean;
+    message: string;
+    data: CategorySpendingDistributionData[];
+}
+

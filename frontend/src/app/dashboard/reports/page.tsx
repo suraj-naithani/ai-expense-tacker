@@ -48,10 +48,6 @@ import {
   YAxis,
 } from "recharts";
 
-
-
-
-
 export default function ReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<"monthly" | "3months" | "6months" | "yearly" | "custom">("6months");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
